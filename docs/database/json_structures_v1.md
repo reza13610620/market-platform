@@ -1,7 +1,7 @@
 # JSON Structures v1 – Market Platform
 
 **Date:** 2026-11-13  
-**Status:** Finalized for schema_v1  
+**Status:** Updated  
 **Decision Owner:** Grok (Architecture Lead)
 
 ---
@@ -17,7 +17,8 @@
     "max_active_offers": 10,
     "max_products_in_supply": 100,
     "max_images_per_product": 6,
-    "max_support_tickets_monthly": 5
+    "max_support_tickets_monthly": 5,
+    "contact_view_quota_monthly": 10
   },
   "features": {
     "priority_support": false,
@@ -37,6 +38,7 @@
 ### Rules
 - `null` = unlimited
 - `0` = disabled / not allowed
+- `contact_view_quota_monthly` = تعداد دفعاتی که کاربر می‌تواند در ماه اطلاعات طرف مقابل را ببیند
 - Same structure is used for all 4 plans (free / silver / gold / special). Only values change.
 - `anonymous_trading` is **NOT** a plan feature. It is a system-wide permanent rule.
 
@@ -90,7 +92,7 @@
 
 ---
 
-## Notes for Future (schema_v2)
+## Notes for Future (schema_v2+)
 - Consider adding `product_specs` table for high-performance filtering
-- Consider adding `subscription_usage` table for accurate limit tracking
+- Consider adding `subscription_usage` table for accurate limit tracking (especially contact_view_quota)
 - Category-based attribute templates can be added later
