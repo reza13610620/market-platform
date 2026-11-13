@@ -1,0 +1,17 @@
+name = "market-platform"
+main = "src/index.ts"
+compatibility_date = "2024-11-12"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "market-db"
+database_id = "00000000-0000-0000-0000-000000000000"  # بعد از ساخت دیتابیس واقعی جایگزین شود
+migrations_dir = "migrations"
+
+# [vars]
+# ENVIRONMENT = "development"
+
+# برای OTP و درگاه پرداخت بعداً secrets اضافه می‌شود:
+# wrangler secret put SMS_API_KEY
+# wrangler secret put PAYMENT_MERCHANT_ID
