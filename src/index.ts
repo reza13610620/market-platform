@@ -1,6 +1,6 @@
 /**
  * Market Platform - Cloudflare Worker Entry Point
- * Phase 1 Foundation + Auth
+ * Phase 1 Foundation + Auth + JWT
  */
 
 import { handleAuthRoutes } from "./routes/auth";
@@ -9,6 +9,7 @@ import { json, error } from "./utils/response";
 export interface Env {
   DB: D1Database;
   SMS_API_KEY?: string;
+  JWT_SECRET?: string;
 }
 
 export default {
@@ -41,7 +42,6 @@ export default {
     if (path.startsWith("/api/auth")) {
       const res = await handleAuthRoutes(request, env, path);
       if (res) {
-        // Add CORS headers
         const headers = new Headers(res.headers);
         headers.set("Access-Control-Allow-Origin", "*");
         return new Response(res.body, { status: res.status, headers });
