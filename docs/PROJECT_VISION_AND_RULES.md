@@ -1,6 +1,6 @@
 # Market Platform – Project Vision, Rules & Architecture Decisions
 
-**Last Updated:** 2026-11-10
+**Last Updated:** 2026-11-13
 **Owner:** Reza
 **Status:** Early Design Phase
 
@@ -17,7 +17,7 @@ Core principles:
 - Security is critical
 - Strong statistics and full history everywhere
 - Quality over speed
-- Anonymous until final agreement
+- **Anonymous until payment is completed**
 
 ## 2. Business Model
 
@@ -56,6 +56,11 @@ They receive notifications and can filter + submit offers.
 - Seller can cancel with penalty (reputation + temporary restriction on offering/receiving requests)
 - Offers have time limits
 
+### Anonymity Rule (Critical)
+- The entire request and offer (pricing) process remains fully anonymous.
+- Parties see each other's information **only after the buyer pays** and the offer is accepted.
+- No name, phone, or contact details are revealed before successful payment.
+
 ### After Acceptance
 Wallet payment → Escrow → Shipping → Buyer confirmation → Commission deducted → Money to seller → Ratings
 
@@ -81,7 +86,12 @@ AI reviews first → result goes to Admin Review Queue → Admin approves → li
 - Strong logging non-negotiable
 - Future: multi-language + crypto + international infra
 
-## 8. Working Method
-Grok currently leads architecture & requirements.
-Kimi is strong collaborator (implementation, skills, frontend).
-All important decisions must be written in this repo.
+## 8. Working Method & Documentation Rule (Permanent)
+- Grok currently leads architecture & requirements.
+- Free models (Gemini, ChatGPT, etc.) are used for draft design work.
+- **Every important decision, structure, or step must be immediately documented and pushed to this repository.**
+- No architecture decision should remain only in chat.
+
+## 9. Finalized JSON Structures (2026-11-13)
+
+See detailed file: `docs/database/json_structures_v1.md`
