@@ -1,6 +1,6 @@
 /**
  * Market Platform - Cloudflare Worker Entry Point
- * Phase 1: Auth + Profile + Wallet + Requests + Offers + Contact Reveal
+ * Phase 1: Auth + Profile + Wallet + Requests + Offers + Contact + Supply List
  */
 
 import { handleAuthRoutes } from "./routes/auth";
@@ -9,6 +9,7 @@ import { handleWalletRoutes } from "./routes/wallet";
 import { handleRequestRoutes } from "./routes/request";
 import { handleOfferRoutes } from "./routes/offer";
 import { handleContactRoutes } from "./routes/contact";
+import { handleSupplyRoutes } from "./routes/supply";
 import { json, error } from "./utils/response";
 
 export interface Env {
@@ -27,7 +28,7 @@ export default {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
       });
@@ -38,7 +39,7 @@ export default {
       return json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.6",
+        version: "0.1.7",
         timestamp: new Date().toISOString()
       });
     }
@@ -66,6 +67,16 @@ export default {
     // Wallet routes
     if (path.startsWith("/api/wallet")) {
       const res = await handleWalletRoutes(request, env, path);
+      if (res) {
+        const headers = new Headers(res.headers);
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(res.body, { status: res.status, headers });
+      }
+    }
+
+    // Supply list routes
+    if (path.startsWith("/api/supply")) {
+      const res = await handleSupplyRoutes(request, env, path);
       if (res) {
         const headers = new Headers(res.headers);
         headers.set("Access-Control-Allow-Origin", "*");
