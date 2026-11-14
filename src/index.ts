@@ -1,9 +1,10 @@
 /**
  * Market Platform - Cloudflare Worker Entry Point
- * Phase 1 Foundation + Auth + JWT
+ * Phase 1 Foundation + Auth + JWT + Profile
  */
 
 import { handleAuthRoutes } from "./routes/auth";
+import { handleProfileRoutes } from "./routes/profile";
 import { json, error } from "./utils/response";
 
 export interface Env {
@@ -22,7 +23,7 @@ export default {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
       });
@@ -33,7 +34,7 @@ export default {
       return json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.0",
+        version: "0.1.1",
         timestamp: new Date().toISOString()
       });
     }
@@ -41,6 +42,16 @@ export default {
     // Auth routes
     if (path.startsWith("/api/auth")) {
       const res = await handleAuthRoutes(request, env, path);
+      if (res) {
+        const headers = new Headers(res.headers);
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(res.body, { status: res.status, headers });
+      }
+    }
+
+    // Profile routes (/api/me)
+    if (path === "/api/me") {
+      const res = await handleProfileRoutes(request, env, path);
       if (res) {
         const headers = new Headers(res.headers);
         headers.set("Access-Control-Allow-Origin", "*");
