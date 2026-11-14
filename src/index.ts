@@ -1,6 +1,6 @@
 /**
  * Market Platform - Cloudflare Worker Entry Point
- * Phase 1 Foundation + Auth + Profile + Wallet + Requests + Offers
+ * Phase 1: Auth + Profile + Wallet + Requests + Offers + Contact Reveal
  */
 
 import { handleAuthRoutes } from "./routes/auth";
@@ -8,6 +8,7 @@ import { handleProfileRoutes } from "./routes/profile";
 import { handleWalletRoutes } from "./routes/wallet";
 import { handleRequestRoutes } from "./routes/request";
 import { handleOfferRoutes } from "./routes/offer";
+import { handleContactRoutes } from "./routes/contact";
 import { json, error } from "./utils/response";
 
 export interface Env {
@@ -37,7 +38,7 @@ export default {
       return json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.5",
+        version: "0.1.6",
         timestamp: new Date().toISOString()
       });
     }
@@ -72,9 +73,18 @@ export default {
       }
     }
 
-    // Request routes
+    // Contact routes (quota + reveal)
+    if (path.startsWith("/api/contact") || path.match(/^\/api\/offers\/\d+\/reveal$/)) {
+      const res = await handleContactRoutes(request, env, path);
+      if (res) {
+        const headers = new Headers(res.headers);
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(res.body, { status: res.status, headers });
+      }
+    }
+
+    // Request routes + offers on request
     if (path.startsWith("/api/requests")) {
-      // First try offer routes (for /api/requests/:id/offers)
       const offerRes = await handleOfferRoutes(request, env, path);
       if (offerRes) {
         const headers = new Headers(offerRes.headers);
