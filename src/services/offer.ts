@@ -1,5 +1,5 @@
 /**
- * Offer service - seller price offers
+ * Offer service - seller price offers + buyer view offers
  */
 
 export interface Env {
@@ -19,12 +19,10 @@ export async function createOffer(
   sellerId: number,
   input: CreateOfferInput
 ): Promise<{ ok: true; offerId: number } | { ok: false; error: string }> {
-  // Basic validation
   if (!input.request_id || input.price <= 0) {
     return { ok: false, error: "اطلاعات پیشنهاد ناقص یا نامعتبر است" };
   }
 
-  // Check request exists and is open
   const request = await env.DB.prepare(
     `SELECT id, status, expires_at, requester_id FROM requests WHERE id = ?`
   ).bind(input.request_id).first<{
@@ -43,7 +41,6 @@ export async function createOffer(
     return { ok: false, error: "نمی‌توانید روی درخواست خودتان پیشنهاد بدهید" };
   }
 
-  // Check if seller already has an active offer on this request
   const existing = await env.DB.prepare(
     `SELECT id FROM request_offers 
      WHERE request_id = ? AND seller_id = ? AND status = 'active'`
@@ -79,9 +76,6 @@ export async function getPoolRequests(
   limit = 20,
   offset = 0
 ): Promise<any[]> {
-  // Simple version: show open requests that are not from this seller
-  // and not expired. Later we will filter by seller_supply_list.
-
   const requests = await env.DB.prepare(
     `SELECT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at
      FROM requests r
@@ -100,7 +94,6 @@ export async function getPoolRequests(
        FROM request_items WHERE request_id = ?`
     ).bind(req.id).all();
 
-    // Check if this seller already offered
     const myOffer = await env.DB.prepare(
       `SELECT id, price, quantity, valid_until, status
        FROM request_offers 
@@ -119,4 +112,54 @@ export async function getPoolRequests(
   }
 
   return result;
+}
+
+/** Buyer views offers on their own request (still anonymous) */
+export async function getOffersForRequest(
+  env: Env,
+  requesterId: number,
+  requestId: number
+): Promise<{ ok: true; offers: any[] } | { ok: false; error: string }> {
+  // Make sure this request belongs to the buyer
+  const request = await env.DB.prepare(
+    `SELECT id, requester_id, status FROM requests WHERE id = ?`
+  ).bind(requestId).first<{ id: number; requester_id: number; status: string }>();
+
+  if (!request) return { ok: false, error: "درخواست یافت نشد" };
+  if (request.requester_id !== requesterId) {
+    return { ok: false, error: "شما اجازه مشاهده پیشنهادهای این درخواست را ندارید" };
+  }
+
+  const offers = await env.DB.prepare(
+    `SELECT 
+       o.id,
+       o.price,
+       o.quantity,
+       o.valid_until,
+       o.status,
+       o.created_at,
+       o.request_item_id,
+       p.reputation_score
+     FROM request_offers o
+     LEFT JOIN user_profiles p ON p.user_id = o.seller_id
+     WHERE o.request_id = ?
+       AND o.status = 'active'
+       AND o.valid_until > datetime('now')
+     ORDER BY o.price ASC`
+  ).bind(requestId).all();
+
+  // Return anonymous offers (no seller identity)
+  const anonymousOffers = (offers.results || []).map((o: any) => ({
+    id: o.id,
+    price: o.price,
+    quantity: o.quantity,
+    valid_until: o.valid_until,
+    status: o.status,
+    created_at: o.created_at,
+    request_item_id: o.request_item_id,
+    seller_reputation: o.reputation_score ?? 80
+    // no seller_id, no name, no phone
+  }));
+
+  return { ok: true, offers: anonymousOffers };
 }

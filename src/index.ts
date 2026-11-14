@@ -37,7 +37,7 @@ export default {
       return json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.4",
+        version: "0.1.5",
         timestamp: new Date().toISOString()
       });
     }
@@ -74,6 +74,14 @@ export default {
 
     // Request routes
     if (path.startsWith("/api/requests")) {
+      // First try offer routes (for /api/requests/:id/offers)
+      const offerRes = await handleOfferRoutes(request, env, path);
+      if (offerRes) {
+        const headers = new Headers(offerRes.headers);
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(offerRes.body, { status: offerRes.status, headers });
+      }
+
       const res = await handleRequestRoutes(request, env, path);
       if (res) {
         const headers = new Headers(res.headers);

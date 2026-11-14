@@ -3,7 +3,12 @@
  */
 
 import { requireAuth } from "../middleware/auth";
-import { createOffer, getPoolRequests, type Env } from "../services/offer";
+import {
+  createOffer,
+  getPoolRequests,
+  getOffersForRequest,
+  type Env
+} from "../services/offer";
 import { json, error } from "../utils/response";
 
 export async function handleOfferRoutes(
@@ -11,7 +16,6 @@ export async function handleOfferRoutes(
   env: Env,
   path: string
 ): Promise<Response | null> {
-  // All these routes need authentication
   const auth = await requireAuth(request, env);
   if (auth instanceof Response) return auth;
 
@@ -55,6 +59,20 @@ export async function handleOfferRoutes(
       message: "پیشنهاد شما با موفقیت ثبت شد",
       offer_id: result.offerId
     }, 201);
+  }
+
+  // GET /api/requests/:id/offers  → پیشنهادهای رسیده به درخواست من (خریدار)
+  const match = path.match(/^\/api\/requests\/(\d+)\/offers$/);
+  if (match && request.method === "GET") {
+    const requestId = Number(match[1]);
+    const result = await getOffersForRequest(env, userId, requestId);
+
+    if (!result.ok) return error(result.error, 403);
+
+    return json({
+      success: true,
+      data: result.offers
+    });
   }
 
   return null;
