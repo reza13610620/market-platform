@@ -1,12 +1,13 @@
 /**
  * Market Platform - Cloudflare Worker Entry Point
- * Phase 1 Foundation + Auth + Profile + Wallet + Requests
+ * Phase 1 Foundation + Auth + Profile + Wallet + Requests + Offers
  */
 
 import { handleAuthRoutes } from "./routes/auth";
 import { handleProfileRoutes } from "./routes/profile";
 import { handleWalletRoutes } from "./routes/wallet";
 import { handleRequestRoutes } from "./routes/request";
+import { handleOfferRoutes } from "./routes/offer";
 import { json, error } from "./utils/response";
 
 export interface Env {
@@ -36,7 +37,7 @@ export default {
       return json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.3",
+        version: "0.1.4",
         timestamp: new Date().toISOString()
       });
     }
@@ -74,6 +75,16 @@ export default {
     // Request routes
     if (path.startsWith("/api/requests")) {
       const res = await handleRequestRoutes(request, env, path);
+      if (res) {
+        const headers = new Headers(res.headers);
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(res.body, { status: res.status, headers });
+      }
+    }
+
+    // Pool & Offer routes
+    if (path === "/api/pool" || path === "/api/offers") {
+      const res = await handleOfferRoutes(request, env, path);
       if (res) {
         const headers = new Headers(res.headers);
         headers.set("Access-Control-Allow-Origin", "*");
