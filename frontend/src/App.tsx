@@ -11,6 +11,8 @@ import PoolPage from './pages/PoolPage'
 import SupplyListPage from './pages/SupplyListPage'
 import RequestOffersPage from './pages/RequestOffersPage'
 import RequestDetailsPage from './pages/RequestDetailsPage'
+import SuggestProductPage from './pages/SuggestProductPage'
+import MySuggestionsPage from './pages/MySuggestionsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth()
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="requests/:id/offers" element={<RequestOffersPage />} />
         <Route path="pool" element={<PoolPage />} />
         <Route path="supply" element={<SupplyListPage />} />
+        <Route path="products/suggest" element={<SuggestProductPage />} />
+        <Route path="products/my-suggestions" element={<MySuggestionsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
