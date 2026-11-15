@@ -4,10 +4,14 @@
 
 import { generateOtpCode, normalizePhone, otpExpiresAt } from "../utils/otp";
 import { signToken } from "../utils/jwt";
+import { sendOtpSms } from "./sms";
 
 export interface Env {
   DB: D1Database;
+  SMS_PROVIDER?: string;
   SMS_API_KEY?: string;
+  SMS_SENDER?: string;
+  SMS_TEMPLATE_OTP?: string;
   JWT_SECRET?: string;
 }
 
@@ -41,8 +45,12 @@ export async function requestOtp(env: Env, rawPhone: string): Promise<{ ok: true
     `INSERT INTO otp_codes (phone, code, expires_at) VALUES (?, ?, ?)`
   ).bind(phone, code, expiresAt).run();
 
-  // TODO: ارسال واقعی پیامک با سرویس پیامکی
-  console.log(`[OTP] phone=${phone} code=${code}`);
+  // ارسال پیامک (اگر کلید واقعی نباشد، حالت mock اجرا می‌شود)
+  const smsResult = await sendOtpSms(env, phone, code);
+
+  if (!smsResult.ok) {
+    console.error('[Auth] SMS failed:', smsResult.error);
+  }
 
   return { ok: true, message: "کد تأیید ارسال شد" };
 }
