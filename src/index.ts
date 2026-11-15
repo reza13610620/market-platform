@@ -1,6 +1,6 @@
 /**
  * Market Platform - Cloudflare Worker Entry Point
- * Phase 1: Auth + Profile + Wallet + Requests + Offers + Contact + Supply List
+ * Phase 1: Auth + Profile + Wallet + Requests + Offers + Contact + Supply + Product Suggest
  */
 
 import { handleAuthRoutes } from "./routes/auth";
@@ -10,6 +10,7 @@ import { handleRequestRoutes } from "./routes/request";
 import { handleOfferRoutes } from "./routes/offer";
 import { handleContactRoutes } from "./routes/contact";
 import { handleSupplyRoutes } from "./routes/supply";
+import { handleProductRoutes } from "./routes/product";
 import { json, error } from "./utils/response";
 
 export interface Env {
@@ -39,7 +40,7 @@ export default {
       return json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.7",
+        version: "0.1.8",
         timestamp: new Date().toISOString()
       });
     }
@@ -84,7 +85,17 @@ export default {
       }
     }
 
-    // Contact routes (quota + reveal)
+    // Product suggestion routes
+    if (path.startsWith("/api/products")) {
+      const res = await handleProductRoutes(request, env, path);
+      if (res) {
+        const headers = new Headers(res.headers);
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(res.body, { status: res.status, headers });
+      }
+    }
+
+    // Contact routes
     if (path.startsWith("/api/contact") || path.match(/^\/api\/offers\/\d+\/reveal$/)) {
       const res = await handleContactRoutes(request, env, path);
       if (res) {
@@ -121,7 +132,7 @@ export default {
       }
     }
 
-    // Other API routes (under construction)
+    // Other API routes
     if (path.startsWith("/api/")) {
       return error("این بخش هنوز پیاده‌سازی نشده", 501);
     }
