@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Link } from 'react-router-dom'
-import { Clock, Package } from 'lucide-react'
+import { Clock, Package, ChevronLeft } from 'lucide-react'
 
 export default function MyRequestsPage() {
   const { token } = useAuth()
@@ -12,10 +12,10 @@ export default function MyRequestsPage() {
 
   const primaryClass =
     theme === 'female'
-      ? 'bg-female-500'
+      ? 'bg-female-500 hover:bg-female-600'
       : theme === 'male'
-      ? 'bg-male-500'
-      : 'bg-teal-600'
+      ? 'bg-male-500 hover:bg-male-600'
+      : 'bg-teal-600 hover:bg-teal-700'
 
   useEffect(() => {
     fetchRequests()
@@ -51,25 +51,31 @@ export default function MyRequestsPage() {
           هنوز درخواستی ثبت نکرده‌اید
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {requests.map((req) => (
-            <div key={req.id} className="card p-5">
+            <Link
+              key={req.id}
+              to={`/requests/${req.id}`}
+              className="card-hover p-5 block group"
+            >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex flex-wrap gap-2 mb-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap gap-2 mb-2.5">
                     {req.items?.map((item: any) => (
                       <span
                         key={item.id}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-calm-50 text-sm text-calm-700"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-calm-50 text-sm text-calm-700"
                       >
-                        <Package size={14} />
+                        <Package size={13} className="text-calm-400" />
                         {item.title_snapshot}
-                        {item.quantity > 1 && ` × ${item.quantity}`}
+                        {item.quantity > 1 && (
+                          <span className="text-calm-400">× {item.quantity}</span>
+                        )}
                       </span>
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-calm-400 mt-3">
+                  <div className="flex items-center gap-4 text-xs text-calm-400">
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
                       {new Date(req.created_at).toLocaleDateString('fa-IR')}
@@ -87,21 +93,16 @@ export default function MyRequestsPage() {
                   </div>
                 </div>
 
-                <div className="text-left">
-                  <div className="text-sm font-semibold text-calm-800">
-                    {req.active_offers_count || 0} پیشنهاد
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-left">
+                    <div className="text-sm font-semibold text-calm-800">
+                      {req.active_offers_count || 0} پیشنهاد
+                    </div>
                   </div>
-                  {req.active_offers_count > 0 && (
-                    <Link
-                      to={`/requests/${req.id}/offers`}
-                      className="text-xs text-teal-600 hover:underline mt-1 inline-block"
-                    >
-                      مشاهده پیشنهادها
-                    </Link>
-                  )}
+                  <ChevronLeft size={18} className="text-calm-300 group-hover:text-calm-500 transition-colors" />
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

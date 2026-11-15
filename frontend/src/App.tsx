@@ -10,6 +10,7 @@ import MyRequestsPage from './pages/MyRequestsPage'
 import PoolPage from './pages/PoolPage'
 import SupplyListPage from './pages/SupplyListPage'
 import RequestOffersPage from './pages/RequestOffersPage'
+import RequestDetailsPage from './pages/RequestDetailsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth()
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="wallet" element={<WalletPage />} />
         <Route path="requests/new" element={<CreateRequestPage />} />
         <Route path="requests" element={<MyRequestsPage />} />
+        <Route path="requests/:id" element={<RequestDetailsPage />} />
         <Route path="requests/:id/offers" element={<RequestOffersPage />} />
         <Route path="pool" element={<PoolPage />} />
         <Route path="supply" element={<SupplyListPage />} />
