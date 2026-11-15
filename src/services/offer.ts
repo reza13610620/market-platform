@@ -1,5 +1,5 @@
 /**
- * Offer service - seller price offers + buyer view offers
+ * Offer service - seller price offers + buyer view offers + smart pool
  */
 
 export interface Env {
@@ -11,7 +11,7 @@ export interface CreateOfferInput {
   request_item_id?: number | null;
   price: number;
   quantity?: number;
-  valid_hours?: number; // default 24
+  valid_hours?: number;
 }
 
 export async function createOffer(
@@ -73,22 +73,51 @@ export async function createOffer(
 export async function getPoolRequests(
   env: Env,
   sellerId: number,
-  limit = 20,
-  offset = 0
+  options: {
+    limit?: number;
+    offset?: number;
+    onlyMySupply?: boolean; // فقط کالاهای لیست تأمین من
+  } = {}
 ): Promise<any[]> {
-  const requests = await env.DB.prepare(
-    `SELECT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at
-     FROM requests r
-     WHERE r.status = 'open'
-       AND r.requester_id != ?
-       AND r.expires_at > datetime('now')
-     ORDER BY r.created_at DESC
-     LIMIT ? OFFSET ?`
-  ).bind(sellerId, limit, offset).all();
+  const limit = options.limit || 20;
+  const offset = options.offset || 0;
+  const onlyMySupply = options.onlyMySupply || false;
+
+  let requests: any[] = [];
+
+  if (onlyMySupply) {
+    // فقط درخواست‌هایی که حداقل یک کالای داخل لیست تأمین فروشنده دارند
+    const rows = await env.DB.prepare(
+      `SELECT DISTINCT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at
+       FROM requests r
+       JOIN request_items ri ON ri.request_id = r.id
+       JOIN seller_supply_list s ON s.product_id = ri.product_id AND s.seller_id = ? AND s.is_active = 1
+       WHERE r.status = 'open'
+         AND r.requester_id != ?
+         AND r.expires_at > datetime('now')
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`
+    ).bind(sellerId, sellerId, limit, offset).all();
+
+    requests = rows.results || [];
+  } else {
+    // همه درخواست‌های باز
+    const rows = await env.DB.prepare(
+      `SELECT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at
+       FROM requests r
+       WHERE r.status = 'open'
+         AND r.requester_id != ?
+         AND r.expires_at > datetime('now')
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`
+    ).bind(sellerId, limit, offset).all();
+
+    requests = rows.results || [];
+  }
 
   const result = [];
 
-  for (const req of requests.results || []) {
+  for (const req of requests) {
     const items = await env.DB.prepare(
       `SELECT id, product_id, title_snapshot, quantity, notes
        FROM request_items WHERE request_id = ?`
@@ -100,6 +129,20 @@ export async function getPoolRequests(
        WHERE request_id = ? AND seller_id = ? AND status = 'active'`
     ).bind(req.id, sellerId).first();
 
+    // Check if any item matches seller supply (for badge)
+    let matchesSupply = false;
+    if (!onlyMySupply) {
+      const match = await env.DB.prepare(
+        `SELECT 1 FROM request_items ri
+         JOIN seller_supply_list s ON s.product_id = ri.product_id
+         WHERE ri.request_id = ? AND s.seller_id = ? AND s.is_active = 1
+         LIMIT 1`
+      ).bind(req.id, sellerId).first();
+      matchesSupply = !!match;
+    } else {
+      matchesSupply = true;
+    }
+
     result.push({
       id: req.id,
       city_name: req.city_name,
@@ -107,7 +150,8 @@ export async function getPoolRequests(
       expires_at: req.expires_at,
       created_at: req.created_at,
       items: items.results || [],
-      my_offer: myOffer || null
+      my_offer: myOffer || null,
+      matches_my_supply: matchesSupply
     });
   }
 
@@ -120,7 +164,6 @@ export async function getOffersForRequest(
   requesterId: number,
   requestId: number
 ): Promise<{ ok: true; offers: any[] } | { ok: false; error: string }> {
-  // Make sure this request belongs to the buyer
   const request = await env.DB.prepare(
     `SELECT id, requester_id, status FROM requests WHERE id = ?`
   ).bind(requestId).first<{ id: number; requester_id: number; status: string }>();
@@ -132,13 +175,7 @@ export async function getOffersForRequest(
 
   const offers = await env.DB.prepare(
     `SELECT 
-       o.id,
-       o.price,
-       o.quantity,
-       o.valid_until,
-       o.status,
-       o.created_at,
-       o.request_item_id,
+       o.id, o.price, o.quantity, o.valid_until, o.status, o.created_at, o.request_item_id,
        p.reputation_score
      FROM request_offers o
      LEFT JOIN user_profiles p ON p.user_id = o.seller_id
@@ -148,7 +185,6 @@ export async function getOffersForRequest(
      ORDER BY o.price ASC`
   ).bind(requestId).all();
 
-  // Return anonymous offers (no seller identity)
   const anonymousOffers = (offers.results || []).map((o: any) => ({
     id: o.id,
     price: o.price,
@@ -158,7 +194,6 @@ export async function getOffersForRequest(
     created_at: o.created_at,
     request_item_id: o.request_item_id,
     seller_reputation: o.reputation_score ?? 80
-    // no seller_id, no name, no phone
   }));
 
   return { ok: true, offers: anonymousOffers };

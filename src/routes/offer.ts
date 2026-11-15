@@ -21,17 +21,23 @@ export async function handleOfferRoutes(
 
   const { userId } = auth;
 
-  // GET /api/pool  → استخر درخواست‌ها برای فروشنده
+  // GET /api/pool  → استخر درخواست‌ها (با فیلتر اختیاری)
   if (path === "/api/pool" && request.method === "GET") {
     const url = new URL(request.url);
     const limit = Math.min(Number(url.searchParams.get("limit") || 20), 50);
     const offset = Number(url.searchParams.get("offset") || 0);
+    const onlyMySupply = url.searchParams.get("only_my_supply") === "1";
 
-    const pool = await getPoolRequests(env, userId, limit, offset);
+    const pool = await getPoolRequests(env, userId, {
+      limit,
+      offset,
+      onlyMySupply
+    });
 
     return json({
       success: true,
-      data: pool
+      data: pool,
+      filter: onlyMySupply ? "my_supply" : "all"
     });
   }
 
@@ -61,7 +67,7 @@ export async function handleOfferRoutes(
     }, 201);
   }
 
-  // GET /api/requests/:id/offers  → پیشنهادهای رسیده به درخواست من (خریدار)
+  // GET /api/requests/:id/offers
   const match = path.match(/^\/api\/requests\/(\d+)\/offers$/);
   if (match && request.method === "GET") {
     const requestId = Number(match[1]);
