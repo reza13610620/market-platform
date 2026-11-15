@@ -37,25 +37,34 @@ export default function DashboardLayout() {
     navigate('/login')
   }
 
-  const primaryBtnClass =
+  const activeBg =
     theme === 'female'
-      ? 'bg-female-500 hover:bg-female-600 focus:ring-female-300'
+      ? 'bg-female-500 text-white shadow-soft'
       : theme === 'male'
-      ? 'bg-male-500 hover:bg-male-600 focus:ring-male-300'
-      : 'bg-teal-600 hover:bg-teal-700 focus:ring-teal-300'
+      ? 'bg-male-500 text-white shadow-soft'
+      : 'bg-teal-600 text-white shadow-soft'
+
+  const activeBgMobile =
+    theme === 'female'
+      ? 'bg-female-50 text-female-700'
+      : theme === 'male'
+      ? 'bg-male-50 text-male-700'
+      : 'bg-teal-50 text-teal-700'
 
   return (
-    <div className="min-h-screen bg-calm-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-calm-50 via-white to-calm-50 flex">
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-white border-l border-calm-100 shadow-soft">
-        <div className="p-6 border-b border-calm-100">
-          <h1 className="text-xl font-bold text-calm-800">مارکت پلتفرم</h1>
-          <p className="text-sm text-calm-500 mt-1">
-            {user?.first_name || user?.phone || 'کاربر'}
+      <aside className="hidden lg:flex lg:flex-col w-[260px] bg-white/80 backdrop-blur-xl border-l border-calm-100/60 sticky top-0 h-screen">
+        {/* Brand */}
+        <div className="px-6 py-7 border-b border-calm-100/60">
+          <h1 className="text-xl font-bold text-calm-800 tracking-tight">مارکت پلتفرم</h1>
+          <p className="text-sm text-calm-400 mt-1 truncate">
+            {user?.first_name || user?.phone || 'کاربر عزیز'}
           </p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -63,46 +72,55 @@ export default function DashboardLayout() {
               end={item.to === '/'}
               className={({ isActive }) =>
                 clsx(
-                  'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                  'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium',
+                  'transition-all duration-300 ease-out',
                   isActive
-                    ? 'text-white shadow-soft ' + primaryBtnClass
-                    : 'text-calm-600 hover:bg-calm-50'
+                    ? activeBg + ' scale-[1.02]'
+                    : 'text-calm-500 hover:bg-calm-50 hover:text-calm-700'
                 )
               }
             >
-              <item.icon size={20} />
+              <item.icon size={20} strokeWidth={1.8} />
               {item.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-calm-100">
+        {/* Logout */}
+        <div className="p-4 border-t border-calm-100/60">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm font-medium
+                       text-red-500 hover:bg-red-50 transition-all duration-300"
           >
-            <LogOut size={20} />
-            خروج
+            <LogOut size={20} strokeWidth={1.8} />
+            خروج از حساب
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-calm-100 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+        <header className="lg:hidden bg-white/80 backdrop-blur-xl border-b border-calm-100/60 px-4 py-3.5
+                           flex items-center justify-between sticky top-0 z-30">
           <h1 className="text-lg font-bold text-calm-800">مارکت پلتفرم</h1>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 rounded-lg hover:bg-calm-50"
+            className="p-2.5 rounded-xl hover:bg-calm-50 transition-colors"
           >
-            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </header>
 
         {/* Mobile Menu */}
-        {mobileOpen && (
-          <div className="lg:hidden bg-white border-b border-calm-100 p-4 space-y-1">
+        <div
+          className={clsx(
+            'lg:hidden bg-white border-b border-calm-100 overflow-hidden transition-all duration-300 ease-out',
+            mobileOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+          )}
+        >
+          <div className="p-3 space-y-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -111,30 +129,32 @@ export default function DashboardLayout() {
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   clsx(
-                    'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                    'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'text-white shadow-soft ' + primaryBtnClass
-                      : 'text-calm-600 hover:bg-calm-50'
+                      ? activeBgMobile
+                      : 'text-calm-500 hover:bg-calm-50'
                   )
                 }
               >
-                <item.icon size={20} />
+                <item.icon size={20} strokeWidth={1.8} />
                 {item.label}
               </NavLink>
             ))}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50"
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm font-medium text-red-500 hover:bg-red-50"
             >
-              <LogOut size={20} />
-              خروج
+              <LogOut size={20} strokeWidth={1.8} />
+              خروج از حساب
             </button>
           </div>
-        )}
+        </div>
 
         {/* Page Content */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
-          <Outlet />
+          <div className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

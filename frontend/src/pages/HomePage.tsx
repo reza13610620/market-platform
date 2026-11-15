@@ -9,92 +9,96 @@ export default function HomePage() {
 
   const primaryClass =
     theme === 'female'
-      ? 'bg-female-500 hover:bg-female-600'
+      ? 'bg-female-500'
       : theme === 'male'
-      ? 'bg-male-500 hover:bg-male-600'
-      : 'bg-teal-600 hover:bg-teal-700'
+      ? 'bg-male-500'
+      : 'bg-teal-600'
 
-  const softClass =
+  const softBg =
     theme === 'female'
-      ? 'bg-female-50 border-female-100'
+      ? 'from-female-50 to-white border-female-100/60'
       : theme === 'male'
-      ? 'bg-male-50 border-male-100'
-      : 'bg-teal-50 border-teal-100'
+      ? 'from-male-50 to-white border-male-100/60'
+      : 'from-teal-50 to-white border-teal-100/60'
+
+  const actions = [
+    {
+      to: '/requests/new',
+      icon: FilePlus,
+      title: 'ثبت درخواست',
+      desc: 'کالای مورد نظرتان را درخواست دهید',
+    },
+    {
+      to: '/pool',
+      icon: Layers,
+      title: 'استخر پیشنهادها',
+      desc: 'درخواست‌های باز را ببینید و قیمت بدهید',
+    },
+    {
+      to: '/supply',
+      icon: Package,
+      title: 'لیست تأمین',
+      desc: 'کالاهایی که می‌توانید تأمین کنید',
+    },
+    {
+      to: '/wallet',
+      icon: Wallet,
+      title: 'کیف پول',
+      desc: 'موجودی و تراکنش‌های شما',
+    },
+  ]
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      {/* Welcome */}
-      <div className={`card p-6 md:p-8 border ${softClass}`}>
-        <h1 className="text-2xl md:text-3xl font-bold text-calm-800">
-          سلام{user?.first_name ? ` ${user.first_name}` : ''} 👋
-        </h1>
-        <p className="text-calm-500 mt-2">
-          به مارکت پلتفرم خوش آمدید. از اینجا می‌توانید درخواست ثبت کنید یا پیشنهاد بدهید.
-        </p>
+      {/* Welcome Card */}
+      <div className={`relative overflow-hidden rounded-3xl border bg-gradient-to-l ${softBg} p-6 md:p-8`}>
+        <div className="relative z-10">
+          <h1 className="text-2xl md:text-3xl font-bold text-calm-800 tracking-tight">
+            سلام{user?.first_name ? ` ${user.first_name}` : ''} 👋
+          </h1>
+          <p className="text-calm-500 mt-2 max-w-lg leading-relaxed">
+            به مارکت پلتفرم خوش آمدید. از اینجا می‌توانید درخواست ثبت کنید یا پیشنهاد بدهید.
+          </p>
+        </div>
       </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link
-          to="/requests/new"
-          className="card p-6 hover:shadow-soft-lg transition-all group"
-        >
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white mb-4 ${primaryClass}`}>
-            <FilePlus size={24} />
-          </div>
-          <h3 className="font-semibold text-calm-800 group-hover:text-calm-900">ثبت درخواست</h3>
-          <p className="text-sm text-calm-500 mt-1">کالای مورد نظرتان را درخواست دهید</p>
-        </Link>
-
-        <Link
-          to="/pool"
-          className="card p-6 hover:shadow-soft-lg transition-all group"
-        >
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white mb-4 ${primaryClass}`}>
-            <Layers size={24} />
-          </div>
-          <h3 className="font-semibold text-calm-800">استخر پیشنهادها</h3>
-          <p className="text-sm text-calm-500 mt-1">درخواست‌های باز را ببینید و قیمت بدهید</p>
-        </Link>
-
-        <Link
-          to="/supply"
-          className="card p-6 hover:shadow-soft-lg transition-all group"
-        >
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white mb-4 ${primaryClass}`}>
-            <Package size={24} />
-          </div>
-          <h3 className="font-semibold text-calm-800">لیست تأمین</h3>
-          <p className="text-sm text-calm-500 mt-1">کالاهایی که می‌توانید تأمین کنید</p>
-        </Link>
-
-        <Link
-          to="/wallet"
-          className="card p-6 hover:shadow-soft-lg transition-all group"
-        >
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white mb-4 ${primaryClass}`}>
-            <Wallet size={24} />
-          </div>
-          <h3 className="font-semibold text-calm-800">کیف پول</h3>
-          <p className="text-sm text-calm-500 mt-1">موجودی و تراکنش‌های شما</p>
-        </Link>
+        {actions.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className="card-hover p-6 group"
+          >
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white mb-4
+                          transition-transform duration-300 group-hover:scale-110 ${primaryClass}`}
+            >
+              <item.icon size={22} strokeWidth={1.8} />
+            </div>
+            <h3 className="font-semibold text-calm-800 group-hover:text-calm-900 transition-colors">
+              {item.title}
+            </h3>
+            <p className="text-sm text-calm-400 mt-1.5 leading-relaxed">{item.desc}</p>
+          </Link>
+        ))}
       </div>
 
       {/* Tips */}
-      <div className="card p-6">
-        <h2 className="font-semibold text-calm-800 mb-3">نکات مهم</h2>
-        <ul className="space-y-2 text-sm text-calm-600">
-          <li className="flex gap-2">
-            <span className="text-teal-500">•</span>
-            تا قبل از مشاهده اطلاعات تماس، هویت طرف مقابل مخفی است.
+      <div className="card p-6 md:p-7">
+        <h2 className="font-semibold text-calm-800 mb-4">نکات مهم</h2>
+        <ul className="space-y-3 text-sm text-calm-500">
+          <li className="flex gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-2 shrink-0" />
+            <span>تا قبل از مشاهده اطلاعات تماس، هویت طرف مقابل کاملاً مخفی است.</span>
           </li>
-          <li className="flex gap-2">
-            <span className="text-teal-500">•</span>
-            برای دیدن شماره فروشنده از سهمیه پلن خود استفاده می‌شود.
+          <li className="flex gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-2 shrink-0" />
+            <span>برای دیدن شماره فروشنده از سهمیه پلن خود استفاده می‌شود.</span>
           </li>
-          <li className="flex gap-2">
-            <span className="text-teal-500">•</span>
-            لیست تأمین خود را کامل کنید تا درخواست‌های مرتبط به شما نمایش داده شود.
+          <li className="flex gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-2 shrink-0" />
+            <span>لیست تأمین خود را کامل کنید تا درخواست‌های مرتبط به شما نمایش داده شود.</span>
           </li>
         </ul>
       </div>
