@@ -21,23 +21,42 @@ export async function handleOfferRoutes(
 
   const { userId } = auth;
 
-  // GET /api/pool  → استخر درخواست‌ها (با فیلتر اختیاری)
+  // GET /api/pool  → استخر درخواست‌ها (با فیلترهای کامل)
   if (path === "/api/pool" && request.method === "GET") {
     const url = new URL(request.url);
     const limit = Math.min(Number(url.searchParams.get("limit") || 20), 50);
     const offset = Number(url.searchParams.get("offset") || 0);
     const onlyMySupply = url.searchParams.get("only_my_supply") === "1";
 
+    // فیلترهای جدید
+    const cityParam = url.searchParams.get("city") || "all";
+    const cityFilter = cityParam === "my" ? "my" : "all";
+
+    const timeParam = url.searchParams.get("time") || "all";
+    const timeFilter = timeParam === "today" ? "today" : "all";
+
+    const typeParam = url.searchParams.get("type") || "all";
+    const typeFilter =
+      typeParam === "single" ? "single" : typeParam === "bulk" ? "bulk" : "all";
+
     const pool = await getPoolRequests(env, userId, {
       limit,
       offset,
-      onlyMySupply
+      onlyMySupply,
+      cityFilter,
+      timeFilter,
+      typeFilter
     });
 
     return json({
       success: true,
       data: pool,
-      filter: onlyMySupply ? "my_supply" : "all"
+      filters: {
+        only_my_supply: onlyMySupply,
+        city: cityFilter,
+        time: timeFilter,
+        type: typeFilter
+      }
     });
   }
 
