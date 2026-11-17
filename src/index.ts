@@ -68,7 +68,7 @@ export default {
       return withSecurityHeaders(json({
         status: "ok",
         service: "market-platform",
-        version: "0.1.9",
+        version: "0.2.0",
         timestamp: new Date().toISOString()
       }));
     }
@@ -104,8 +104,8 @@ export default {
       if (res) return withSecurityHeaders(res);
     }
 
-    // Product suggestions
-    if (path.startsWith("/api/products")) {
+    // Product suggestions + Admin review queue
+    if (path.startsWith("/api/products") || path.startsWith("/api/admin/products")) {
       const res = await handleProductRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
