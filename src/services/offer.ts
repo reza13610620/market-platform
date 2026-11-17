@@ -70,50 +70,97 @@ export async function createOffer(
   return { ok: true, offerId: result.meta.last_row_id as number };
 }
 
+export interface PoolOptions {
+  limit?: number;
+  offset?: number;
+  onlyMySupply?: boolean;   // فقط کالاهای لیست تأمین من
+  cityFilter?: 'my' | 'all'; // شهر من یا همه
+  timeFilter?: 'today' | 'all'; // فقط امروز یا همه بازها
+  typeFilter?: 'single' | 'bulk' | 'all'; // تکی، یکجا، یا همه
+}
+
 export async function getPoolRequests(
   env: Env,
   sellerId: number,
-  options: {
-    limit?: number;
-    offset?: number;
-    onlyMySupply?: boolean; // فقط کالاهای لیست تأمین من
-  } = {}
+  options: PoolOptions = {}
 ): Promise<any[]> {
   const limit = options.limit || 20;
   const offset = options.offset || 0;
   const onlyMySupply = options.onlyMySupply || false;
+  const cityFilter = options.cityFilter || 'all';
+  const timeFilter = options.timeFilter || 'all';
+  const typeFilter = options.typeFilter || 'all';
 
-  let requests: any[] = [];
+  // گرفتن شهر فروشنده
+  let sellerCity: string | null = null;
+  if (cityFilter === 'my') {
+    const profile = await env.DB.prepare(
+      `SELECT city_name FROM user_profiles WHERE user_id = ?`
+    ).bind(sellerId).first<{ city_name: string | null }>();
+    sellerCity = profile?.city_name || null;
+  }
+
+  // ساخت شرط‌های پایه
+  const conditions: string[] = [
+    `r.status = 'open'`,
+    `r.requester_id != ?`,
+    `r.expires_at > datetime('now')`
+  ];
+  const params: any[] = [sellerId];
+
+  // فیلتر شهر
+  if (cityFilter === 'my' && sellerCity) {
+    conditions.push(`r.city_name = ?`);
+    params.push(sellerCity);
+  }
+
+  // فیلتر زمان
+  if (timeFilter === 'today') {
+    conditions.push(`date(r.created_at) = date('now')`);
+  }
+
+  // فیلتر نوع درخواست (تکی / یکجا)
+  if (typeFilter === 'single') {
+    conditions.push(`r.is_bulk = 0`);
+  } else if (typeFilter === 'bulk') {
+    conditions.push(`r.is_bulk = 1`);
+  }
+
+  let baseQuery = '';
+  let finalParams: any[] = [];
 
   if (onlyMySupply) {
     // فقط درخواست‌هایی که حداقل یک کالای داخل لیست تأمین فروشنده دارند
-    const rows = await env.DB.prepare(
-      `SELECT DISTINCT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at
-       FROM requests r
-       JOIN request_items ri ON ri.request_id = r.id
-       JOIN seller_supply_list s ON s.product_id = ri.product_id AND s.seller_id = ? AND s.is_active = 1
-       WHERE r.status = 'open'
-         AND r.requester_id != ?
-         AND r.expires_at > datetime('now')
-       ORDER BY r.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(sellerId, sellerId, limit, offset).all();
-
-    requests = rows.results || [];
+    baseQuery = `
+      SELECT DISTINCT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at,
+             1 as matches_my_supply
+      FROM requests r
+      JOIN request_items ri ON ri.request_id = r.id
+      JOIN seller_supply_list s ON s.product_id = ri.product_id AND s.seller_id = ? AND s.is_active = 1
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY r.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    finalParams = [sellerId, ...params, limit, offset];
   } else {
-    // همه درخواست‌های باز
-    const rows = await env.DB.prepare(
-      `SELECT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at
-       FROM requests r
-       WHERE r.status = 'open'
-         AND r.requester_id != ?
-         AND r.expires_at > datetime('now')
-       ORDER BY r.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(sellerId, limit, offset).all();
-
-    requests = rows.results || [];
+    // همه درخواست‌های باز + اولویت به آن‌هایی که با لیست تأمین جور هستند
+    baseQuery = `
+      SELECT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at,
+             CASE WHEN EXISTS (
+               SELECT 1 FROM request_items ri2
+               JOIN seller_supply_list s2 ON s2.product_id = ri2.product_id
+               WHERE ri2.request_id = r.id AND s2.seller_id = ? AND s2.is_active = 1
+             ) THEN 1 ELSE 0 END as matches_my_supply
+      FROM requests r
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY matches_my_supply DESC, r.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    finalParams = [sellerId, ...params, limit, offset];
   }
+
+  const rows = await env.DB.prepare(baseQuery).bind(...finalParams).all();
+  const requests = rows.results || [];
 
   const result = [];
 
@@ -129,20 +176,6 @@ export async function getPoolRequests(
        WHERE request_id = ? AND seller_id = ? AND status = 'active'`
     ).bind(req.id, sellerId).first();
 
-    // Check if any item matches seller supply (for badge)
-    let matchesSupply = false;
-    if (!onlyMySupply) {
-      const match = await env.DB.prepare(
-        `SELECT 1 FROM request_items ri
-         JOIN seller_supply_list s ON s.product_id = ri.product_id
-         WHERE ri.request_id = ? AND s.seller_id = ? AND s.is_active = 1
-         LIMIT 1`
-      ).bind(req.id, sellerId).first();
-      matchesSupply = !!match;
-    } else {
-      matchesSupply = true;
-    }
-
     result.push({
       id: req.id,
       city_name: req.city_name,
@@ -151,7 +184,7 @@ export async function getPoolRequests(
       created_at: req.created_at,
       items: items.results || [],
       my_offer: myOffer || null,
-      matches_my_supply: matchesSupply
+      matches_my_supply: !!req.matches_my_supply
     });
   }
 
