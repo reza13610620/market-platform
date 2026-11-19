@@ -1,9 +1,11 @@
 /**
  * Contact view service - reveal seller contact with quota check
  * + notify seller + mark request as matched
+ * + create lightweight order for post-deal feedback (current phase)
  */
 
 import { createNotification } from "./notification";
+import { ensureOrderForOffer } from "./review";
 
 export interface Env {
   DB: D1Database;
@@ -19,6 +21,7 @@ interface RevealResult {
     reputation_score: number;
   };
   remaining_quota: number | null;
+  order_id?: number;
 } | {
   ok: false;
   error: string;
@@ -72,7 +75,16 @@ export async function revealSellerContact(
     const sellerInfo = await getSellerInfo(env, offer.seller_id);
     if (!sellerInfo) return { ok: false, error: "اطلاعات فروشنده یافت نشد" };
     const quota = await getRemainingQuota(env, buyerId);
-    return { ok: true, seller: sellerInfo, remaining_quota: quota };
+    // سفارش موجود را هم برگردان
+    const existingOrder = await env.DB.prepare(
+      `SELECT id FROM orders WHERE offer_id = ?`
+    ).bind(offerId).first<{ id: number }>();
+    return {
+      ok: true,
+      seller: sellerInfo,
+      remaining_quota: quota,
+      order_id: existingOrder?.id,
+    };
   }
 
   const sellerUser = await env.DB.prepare(
@@ -109,6 +121,16 @@ export async function revealSellerContact(
     ).bind(offer.request_id, buyerId).run();
   }
 
+  // ایجاد سفارش سبک برای پشتیبانی بازخورد بعد از معامله (فاز فعلی)
+  const orderId = await ensureOrderForOffer(
+    env,
+    offerId,
+    buyerId,
+    offer.seller_id,
+    offer.request_id,
+    offer.price
+  );
+
   const priceText = Number(offer.price).toLocaleString("fa-IR");
   await createNotification(
     env,
@@ -133,6 +155,7 @@ export async function revealSellerContact(
     ok: true,
     seller: sellerInfo,
     remaining_quota: newRemaining,
+    order_id: orderId,
   };
 }
 
