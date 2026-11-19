@@ -2,29 +2,28 @@ name = "market-platform"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
-# ===================== Database =====================
+# ===================== Database اصلی مارکت =====================
 [[d1_databases]]
 binding = "DB"
 database_name = "market-db"
-database_id = "00000000-0000-0000-0000-000000000000"  # بعد از ساخت دیتابیس واقعی جایگزین شود
+database_id = "00000000-0000-0000-0000-000000000000"  # بعد از ساخت market-db جایگزین شود
+
+# ===================== دیتابیس مشترک کاتالوگ/کاربر/پلن =====================
+[[d1_databases]]
+binding = "SHARED_CATALOG"
+database_name = "shared-catalog"
+database_id = "00000000-0000-0000-0000-000000000000"  # Database ID مربوط به shared-catalog
 
 # ===================== Variables (غیر حساس) =====================
 [vars]
-# SMS
-SMS_PROVIDER = "mock"              # بعداً: kavenegar | smsir | faraz
+SMS_PROVIDER = "mock"
 SMS_SENDER = ""
 SMS_TEMPLATE_OTP = "otp"
-
-# Payment
-PAYMENT_PROVIDER = "mock"          # بعداً: zarinpal | idpay
+PAYMENT_PROVIDER = "mock"
 PAYMENT_CALLBACK_URL = ""
 PAYMENT_SANDBOX = "true"
 
-# ===================== Secrets (حساس - با دستور secret گذاشته شوند) =====================
-# برای تنظیم کلیدهای واقعی از دستورات زیر استفاده کنید:
-#
+# ===================== Secrets =====================
+# npx wrangler secret put JWT_SECRET
 # npx wrangler secret put SMS_API_KEY
 # npx wrangler secret put PAYMENT_MERCHANT_ID
-# npx wrangler secret put JWT_SECRET
-#
-# هرگز کلید واقعی را داخل این فایل نگذارید.
