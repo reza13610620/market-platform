@@ -15,6 +15,7 @@ import { handleOfferRoutes } from "./routes/offer";
 import { handleContactRoutes } from "./routes/contact";
 import { handleSupplyRoutes } from "./routes/supply";
 import { handleProductRoutes } from "./routes/product";
+import { handleTicketRoutes } from "./routes/ticket";
 import { json, error } from "./utils/response";
 import { securityHeaders, getClientIp, checkRateLimit } from "./utils/security";
 
@@ -30,7 +31,6 @@ function withSecurityHeaders(res: Response): Response {
   for (const [k, v] of Object.entries(sec)) {
     headers.set(k, v as string);
   }
-  // Keep CORS for now (will be tightened later with allowed origins)
   if (!headers.has("Access-Control-Allow-Origin")) {
     headers.set("Access-Control-Allow-Origin", "*");
   }
@@ -43,7 +43,6 @@ export default {
     const path = url.pathname;
     const ip = getClientIp(request);
 
-    // CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -55,62 +54,59 @@ export default {
       });
     }
 
-    // Global light rate limit (very basic protection)
-    const globalLimit = checkRateLimit(`global:${ip}`, 300, 60); // 300 req/min per IP
+    const globalLimit = checkRateLimit(`global:${ip}`, 300, 60);
     if (!globalLimit.allowed) {
       return withSecurityHeaders(
         error("تعداد درخواست‌ها بیش از حد مجاز است. کمی صبر کنید.", 429)
       );
     }
 
-    // Health check
     if (path === "/" || path === "/health") {
       return withSecurityHeaders(json({
         status: "ok",
         service: "market-platform",
-        version: "0.2.0",
+        version: "0.2.1",
         timestamp: new Date().toISOString()
       }));
     }
 
-    // Auth routes (stricter rate limit)
     if (path.startsWith("/api/auth")) {
-      const authLimit = checkRateLimit(`auth:${ip}`, 20, 60); // 20/min
+      const authLimit = checkRateLimit(`auth:${ip}`, 20, 60);
       if (!authLimit.allowed) {
         return withSecurityHeaders(
           error("تعداد تلاش‌ها زیاد است. لطفاً کمی صبر کنید.", 429)
         );
       }
-
       const res = await handleAuthRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Profile
     if (path === "/api/me") {
       const res = await handleProfileRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Wallet
     if (path.startsWith("/api/wallet")) {
       const res = await handleWalletRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Supply
     if (path.startsWith("/api/supply")) {
       const res = await handleSupplyRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Product suggestions + Admin review queue
     if (path.startsWith("/api/products") || path.startsWith("/api/admin/products")) {
       const res = await handleProductRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Contact / reveal (sensitive – extra rate limit)
+    // Tickets
+    if (path.startsWith("/api/tickets")) {
+      const res = await handleTicketRoutes(request, env, path);
+      if (res) return withSecurityHeaders(res);
+    }
+
     if (path.startsWith("/api/contact") || path.match(/^\/api\/offers\/\d+\/reveal$/)) {
       const revealLimit = checkRateLimit(`reveal:${ip}`, 30, 60);
       if (!revealLimit.allowed) {
@@ -118,21 +114,17 @@ export default {
           error("تعداد درخواست مشاهده اطلاعات بیش از حد مجاز است.", 429)
         );
       }
-
       const res = await handleContactRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Requests + offers on request
     if (path.startsWith("/api/requests")) {
       const offerRes = await handleOfferRoutes(request, env, path);
       if (offerRes) return withSecurityHeaders(offerRes);
-
       const res = await handleRequestRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 
-    // Pool & Offers
     if (path === "/api/pool" || path === "/api/offers") {
       const res = await handleOfferRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
