@@ -1,6 +1,7 @@
 /**
- * سیستم پنالتی – نسخه ۱
+ * سیستم پنالتی – نسخه ۱.۱
  * بدون پول. فقط محدودیت موقت + سابقه + تأثیر روی امتیاز اعتبار
+ * پنالتی تصاعدی بر اساس تعداد تخلفات اخیر
  * فاز اول: فقط فروشنده
  */
 
@@ -30,7 +31,21 @@ export interface ApplyPenaltyInput {
   adminNote?: string | null;
 }
 
-// مقادیر پیش‌فرض (بعداً توسط سوپر ادمین قابل تنظیم)
+// جدول تصاعدی برای لغو پیشنهاد
+const CANCEL_OFFER_ESCALATION = [
+  { reputation: 8, hours: 24 },   // اولین بار
+  { reputation: 12, hours: 48 },  // دومین بار
+  { reputation: 18, hours: 72 },  // سومین بار
+  { reputation: 25, hours: 168 }, // چهارم و بیشتر (۷ روز)
+];
+
+// جدول تصاعدی برای تخلفات شدید
+const HEAVY_ESCALATION = [
+  { reputation: 25, hours: 168 },  // اولین بار
+  { reputation: 40, hours: 336 },  // دومین بار (۱۴ روز)
+  { reputation: 50, hours: 720 },  // سومین و بیشتر (۳۰ روز)
+];
+
 const DEFAULTS: Record<
   PenaltyReasonCode,
   { severity: PenaltySeverity; reputation: number; hours: number }
@@ -44,16 +59,74 @@ const DEFAULTS: Record<
 };
 
 /**
- * اعمال پنالتی روی کاربر
+ * تعداد پنالتی‌های مشابه در ۳۰ روز گذشته را می‌شمارد
+ */
+async function countRecentPenalties(
+  env: Env,
+  userId: number,
+  reasonCode: string
+): Promise<number> {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) as cnt FROM penalties
+     WHERE user_id = ?
+       AND reason_code = ?
+       AND created_at > datetime('now', '-30 days')`
+  )
+    .bind(userId, reasonCode)
+    .first<{ cnt: number }>();
+
+  return row?.cnt || 0;
+}
+
+/**
+ * بر اساس تعداد تخلفات قبلی، شدت را انتخاب می‌کند
+ */
+function getEscalatedValues(
+  reasonCode: PenaltyReasonCode,
+  previousCount: number
+): { reputation: number; hours: number; severity: PenaltySeverity } {
+  if (reasonCode === "cancel_offer") {
+    const idx = Math.min(previousCount, CANCEL_OFFER_ESCALATION.length - 1);
+    const values = CANCEL_OFFER_ESCALATION[idx];
+    return {
+      ...values,
+      severity: previousCount >= 3 ? "heavy" : previousCount >= 1 ? "medium" : "light",
+    };
+  }
+
+  if (reasonCode === "no_ship" || reasonCode === "wrong_item" || reasonCode === "abuse") {
+    const idx = Math.min(previousCount, HEAVY_ESCALATION.length - 1);
+    const values = HEAVY_ESCALATION[idx];
+    return {
+      ...values,
+      severity: previousCount >= 2 ? "critical" : "heavy",
+    };
+  }
+
+  // سایر موارد: از پیش‌فرض استفاده کن
+  const defaults = DEFAULTS[reasonCode] || DEFAULTS.other;
+  return {
+    reputation: defaults.reputation,
+    hours: defaults.hours,
+    severity: defaults.severity,
+  };
+}
+
+/**
+ * اعمال پنالتی روی کاربر (با تصاعد)
  */
 export async function applyPenalty(
   env: Env,
   input: ApplyPenaltyInput
 ): Promise<{ ok: true; penaltyId: number; restrictionUntil: string } | { ok: false; error: string }> {
-  const defaults = DEFAULTS[input.reasonCode] || DEFAULTS.other;
-  const severity = input.severity || defaults.severity;
-  const reputationDeduction = defaults.reputation;
-  const restrictionHours = defaults.hours;
+  // شمارش تخلفات مشابه در ۳۰ روز گذشته
+  const previousCount = await countRecentPenalties(env, input.userId, input.reasonCode);
+
+  // محاسبه شدت تصاعدی
+  const escalated = getEscalatedValues(input.reasonCode, previousCount);
+  const severity = input.severity || escalated.severity;
+  const reputationDeduction = escalated.reputation;
+  const restrictionHours = escalated.hours;
 
   const until = new Date();
   until.setHours(until.getHours() + restrictionHours);
@@ -108,11 +181,22 @@ export async function applyPenalty(
         severity,
         reputation_deduction: reputationDeduction,
         restriction_hours: restrictionHours,
+        previous_count: previousCount,
+        progressive: true,
       })
     )
     .run();
 
   // اعلان به کاربر
+  const timesText =
+    previousCount === 0
+      ? "اولین بار"
+      : previousCount === 1
+      ? "دومین بار"
+      : previousCount === 2
+      ? "سومین بار"
+      : `بار ${previousCount + 1}`;
+
   await env.DB.prepare(
     `INSERT INTO notifications (user_id, channel, title, body, status)
      VALUES (?, 'in_app', ?, ?, 'pending')`
@@ -120,7 +204,7 @@ export async function applyPenalty(
     .bind(
       input.userId,
       "محدودیت اعمال شد",
-      `به دلیل «${input.reasonText}» تا ${new Date(restrictionUntil).toLocaleString("fa-IR")} نمی‌توانید پیشنهاد جدید ثبت کنید. امتیاز اعتبار شما نیز کاهش یافت.`
+      `به دلیل «${input.reasonText}» (${timesText}) تا ${new Date(restrictionUntil).toLocaleString("fa-IR")} نمی‌توانید پیشنهاد جدید ثبت کنید. امتیاز اعتبار شما ${reputationDeduction} واحد کاهش یافت.`
     )
     .run();
 
@@ -191,7 +275,7 @@ export async function getUserPenalties(
 }
 
 /**
- * لغو پیشنهاد توسط فروشنده + اعمال پنالتی
+ * لغو پیشنهاد توسط فروشنده + اعمال پنالتی تصاعدی
  */
 export async function cancelOfferWithPenalty(
   env: Env,
