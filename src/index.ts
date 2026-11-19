@@ -15,6 +15,7 @@ import { handleNotificationRoutes } from "./routes/notification";
 import { handleSubscriptionRoutes } from "./routes/subscription";
 import { handleReviewRoutes } from "./routes/review";
 import { handleSmartRoutes } from "./routes/smart";
+import { handleFavoriteRoutes } from "./routes/favorite";
 import { json, error } from "./utils/response";
 import { securityHeaders, getClientIp, checkRateLimit } from "./utils/security";
 
@@ -64,7 +65,7 @@ export default {
       return withSecurityHeaders(json({
         status: "ok",
         service: "market-platform",
-        version: "0.5.0",
+        version: "0.5.1",
         timestamp: new Date().toISOString()
       }));
     }
@@ -101,6 +102,11 @@ export default {
       if (res) return withSecurityHeaders(res);
     }
 
+    if (path.startsWith("/api/favorites")) {
+      const res = await handleFavoriteRoutes(request, env, path);
+      if (res) return withSecurityHeaders(res);
+    }
+
     if (path.startsWith("/api/wallet")) {
       const res = await handleWalletRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
@@ -116,7 +122,7 @@ export default {
       if (res) return withSecurityHeaders(res);
     }
 
-    if (path.startsWith("/api/tickets")) {
+    if (path.startsWith("/api/tickets") || path.startsWith("/api/admin/tickets")) {
       const res = await handleTicketRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
