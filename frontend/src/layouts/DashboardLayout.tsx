@@ -11,7 +11,8 @@ import {
   Layers,
   LogOut,
   Menu,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -24,6 +25,11 @@ const navItems = [
   { to: '/supply', label: 'لیست تأمین', icon: Package },
   { to: '/wallet', label: 'کیف پول', icon: Wallet },
   { to: '/profile', label: 'پروفایل', icon: User },
+]
+
+// لینک موقت ادمین (بعداً فقط برای نقش ادمین نمایش داده می‌شود)
+const adminItems = [
+  { to: '/admin/products/review', label: 'صف بررسی کالا', icon: ShieldCheck },
 ]
 
 export default function DashboardLayout() {
@@ -84,6 +90,29 @@ export default function DashboardLayout() {
               {item.label}
             </NavLink>
           ))}
+
+          {/* Admin section (temporary) */}
+          <div className="pt-4 mt-2 border-t border-calm-100/60">
+            <p className="px-4 text-xs text-calm-400 mb-2">مدیریت (موقت)</p>
+            {adminItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  clsx(
+                    'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium',
+                    'transition-all duration-300 ease-out',
+                    isActive
+                      ? activeBg + ' scale-[1.02]'
+                      : 'text-calm-500 hover:bg-calm-50 hover:text-calm-700'
+                  )
+                }
+              >
+                <item.icon size={20} strokeWidth={1.8} />
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
         {/* Logout */}
@@ -117,7 +146,7 @@ export default function DashboardLayout() {
         <div
           className={clsx(
             'lg:hidden bg-white border-b border-calm-100 overflow-hidden transition-all duration-300 ease-out',
-            mobileOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+            mobileOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
           <div className="p-3 space-y-1">
@@ -140,6 +169,27 @@ export default function DashboardLayout() {
                 {item.label}
               </NavLink>
             ))}
+            <div className="pt-2 mt-2 border-t border-calm-100">
+              <p className="px-4 text-xs text-calm-400 mb-1">مدیریت (موقت)</p>
+              {adminItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    clsx(
+                      'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? activeBgMobile
+                        : 'text-calm-500 hover:bg-calm-50'
+                    )
+                  }
+                >
+                  <item.icon size={20} strokeWidth={1.8} />
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm font-medium text-red-500 hover:bg-red-50"
