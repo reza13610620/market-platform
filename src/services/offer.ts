@@ -1,6 +1,9 @@
 /**
  * Offer service - seller price offers + buyer view offers + smart pool
+ * + penalty check on create + cancel with penalty
  */
+
+import { checkOfferRestriction, cancelOfferWithPenalty } from "./penalty";
 
 export interface Env {
   DB: D1Database;
@@ -23,14 +26,28 @@ export async function createOffer(
     return { ok: false, error: "اطلاعات پیشنهاد ناقص یا نامعتبر است" };
   }
 
+  // بررسی محدودیت پنالتی
+  const restriction = await checkOfferRestriction(env, sellerId);
+  if (restriction.restricted) {
+    const untilFa = restriction.until
+      ? new Date(restriction.until).toLocaleString("fa-IR")
+      : "مدتی";
+    return {
+      ok: false,
+      error: `شما به دلیل پنالتی تا ${untilFa} نمی‌توانید پیشنهاد جدید ثبت کنید. دلیل: ${restriction.reason || "محدودیت فعال"}`,
+    };
+  }
+
   const request = await env.DB.prepare(
     `SELECT id, status, expires_at, requester_id FROM requests WHERE id = ?`
-  ).bind(input.request_id).first<{
-    id: number;
-    status: string;
-    expires_at: string;
-    requester_id: number;
-  }>();
+  )
+    .bind(input.request_id)
+    .first<{
+      id: number;
+      status: string;
+      expires_at: string;
+      requester_id: number;
+    }>();
 
   if (!request) return { ok: false, error: "درخواست یافت نشد" };
   if (request.status !== "open") return { ok: false, error: "این درخواست دیگر باز نیست" };
@@ -44,7 +61,9 @@ export async function createOffer(
   const existing = await env.DB.prepare(
     `SELECT id FROM request_offers 
      WHERE request_id = ? AND seller_id = ? AND status = 'active'`
-  ).bind(input.request_id, sellerId).first();
+  )
+    .bind(input.request_id, sellerId)
+    .first();
 
   if (existing) {
     return { ok: false, error: "شما قبلاً روی این درخواست پیشنهاد فعال دارید" };
@@ -58,25 +77,29 @@ export async function createOffer(
     `INSERT INTO request_offers 
      (request_id, request_item_id, seller_id, price, quantity, valid_until, status)
      VALUES (?, ?, ?, ?, ?, ?, 'active')`
-  ).bind(
-    input.request_id,
-    input.request_item_id || null,
-    sellerId,
-    input.price,
-    input.quantity || 1,
-    validUntil.toISOString()
-  ).run();
+  )
+    .bind(
+      input.request_id,
+      input.request_item_id || null,
+      sellerId,
+      input.price,
+      input.quantity || 1,
+      validUntil.toISOString()
+    )
+    .run();
 
   return { ok: true, offerId: result.meta.last_row_id as number };
 }
 
+export { cancelOfferWithPenalty };
+
 export interface PoolOptions {
   limit?: number;
   offset?: number;
-  onlyMySupply?: boolean;   // فقط کالاهای لیست تأمین من
-  cityFilter?: 'my' | 'all'; // شهر من یا همه
-  timeFilter?: 'today' | 'all'; // فقط امروز یا همه بازها
-  typeFilter?: 'single' | 'bulk' | 'all'; // تکی، یکجا، یا همه
+  onlyMySupply?: boolean;
+  cityFilter?: "my" | "all";
+  timeFilter?: "today" | "all";
+  typeFilter?: "single" | "bulk" | "all";
 }
 
 export async function getPoolRequests(
@@ -87,63 +110,58 @@ export async function getPoolRequests(
   const limit = options.limit || 20;
   const offset = options.offset || 0;
   const onlyMySupply = options.onlyMySupply || false;
-  const cityFilter = options.cityFilter || 'all';
-  const timeFilter = options.timeFilter || 'all';
-  const typeFilter = options.typeFilter || 'all';
+  const cityFilter = options.cityFilter || "all";
+  const timeFilter = options.timeFilter || "all";
+  const typeFilter = options.typeFilter || "all";
 
-  // گرفتن شهر فروشنده
   let sellerCity: string | null = null;
-  if (cityFilter === 'my') {
+  if (cityFilter === "my") {
     const profile = await env.DB.prepare(
       `SELECT city_name FROM user_profiles WHERE user_id = ?`
-    ).bind(sellerId).first<{ city_name: string | null }>();
+    )
+      .bind(sellerId)
+      .first<{ city_name: string | null }>();
     sellerCity = profile?.city_name || null;
   }
 
-  // ساخت شرط‌های پایه
   const conditions: string[] = [
     `r.status = 'open'`,
     `r.requester_id != ?`,
-    `r.expires_at > datetime('now')`
+    `r.expires_at > datetime('now')`,
   ];
   const params: any[] = [sellerId];
 
-  // فیلتر شهر
-  if (cityFilter === 'my' && sellerCity) {
+  if (cityFilter === "my" && sellerCity) {
     conditions.push(`r.city_name = ?`);
     params.push(sellerCity);
   }
 
-  // فیلتر زمان
-  if (timeFilter === 'today') {
+  if (timeFilter === "today") {
     conditions.push(`date(r.created_at) = date('now')`);
   }
 
-  // فیلتر نوع درخواست (تکی / یکجا)
-  if (typeFilter === 'single') {
+  if (typeFilter === "single") {
     conditions.push(`r.is_bulk = 0`);
-  } else if (typeFilter === 'bulk') {
+  } else if (typeFilter === "bulk") {
     conditions.push(`r.is_bulk = 1`);
   }
 
-  let baseQuery = '';
+  let baseQuery = "";
   let finalParams: any[] = [];
 
   if (onlyMySupply) {
-    // فقط درخواست‌هایی که حداقل یک کالای داخل لیست تأمین فروشنده دارند
     baseQuery = `
       SELECT DISTINCT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at,
              1 as matches_my_supply
       FROM requests r
       JOIN request_items ri ON ri.request_id = r.id
       JOIN seller_supply_list s ON s.product_id = ri.product_id AND s.seller_id = ? AND s.is_active = 1
-      WHERE ${conditions.join(' AND ')}
+      WHERE ${conditions.join(" AND ")}
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?
     `;
     finalParams = [sellerId, ...params, limit, offset];
   } else {
-    // همه درخواست‌های باز + اولویت به آن‌هایی که با لیست تأمین جور هستند
     baseQuery = `
       SELECT r.id, r.city_name, r.is_bulk, r.expires_at, r.created_at,
              CASE WHEN EXISTS (
@@ -152,7 +170,7 @@ export async function getPoolRequests(
                WHERE ri2.request_id = r.id AND s2.seller_id = ? AND s2.is_active = 1
              ) THEN 1 ELSE 0 END as matches_my_supply
       FROM requests r
-      WHERE ${conditions.join(' AND ')}
+      WHERE ${conditions.join(" AND ")}
       ORDER BY matches_my_supply DESC, r.created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -168,13 +186,17 @@ export async function getPoolRequests(
     const items = await env.DB.prepare(
       `SELECT id, product_id, title_snapshot, quantity, notes
        FROM request_items WHERE request_id = ?`
-    ).bind(req.id).all();
+    )
+      .bind(req.id)
+      .all();
 
     const myOffer = await env.DB.prepare(
       `SELECT id, price, quantity, valid_until, status
        FROM request_offers 
        WHERE request_id = ? AND seller_id = ? AND status = 'active'`
-    ).bind(req.id, sellerId).first();
+    )
+      .bind(req.id, sellerId)
+      .first();
 
     result.push({
       id: req.id,
@@ -184,7 +206,7 @@ export async function getPoolRequests(
       created_at: req.created_at,
       items: items.results || [],
       my_offer: myOffer || null,
-      matches_my_supply: !!req.matches_my_supply
+      matches_my_supply: !!req.matches_my_supply,
     });
   }
 
@@ -199,7 +221,9 @@ export async function getOffersForRequest(
 ): Promise<{ ok: true; offers: any[] } | { ok: false; error: string }> {
   const request = await env.DB.prepare(
     `SELECT id, requester_id, status FROM requests WHERE id = ?`
-  ).bind(requestId).first<{ id: number; requester_id: number; status: string }>();
+  )
+    .bind(requestId)
+    .first<{ id: number; requester_id: number; status: string }>();
 
   if (!request) return { ok: false, error: "درخواست یافت نشد" };
   if (request.requester_id !== requesterId) {
@@ -216,7 +240,9 @@ export async function getOffersForRequest(
        AND o.status = 'active'
        AND o.valid_until > datetime('now')
      ORDER BY o.price ASC`
-  ).bind(requestId).all();
+  )
+    .bind(requestId)
+    .all();
 
   const anonymousOffers = (offers.results || []).map((o: any) => ({
     id: o.id,
@@ -226,7 +252,7 @@ export async function getOffersForRequest(
     status: o.status,
     created_at: o.created_at,
     request_item_id: o.request_item_id,
-    seller_reputation: o.reputation_score ?? 80
+    seller_reputation: o.reputation_score ?? 80,
   }));
 
   return { ok: true, offers: anonymousOffers };

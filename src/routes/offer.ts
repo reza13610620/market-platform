@@ -1,5 +1,5 @@
 /**
- * Offer & Pool routes
+ * Offer & Pool routes + cancel with penalty
  */
 
 import { requireAuth } from "../middleware/auth";
@@ -7,8 +7,10 @@ import {
   createOffer,
   getPoolRequests,
   getOffersForRequest,
+  cancelOfferWithPenalty,
   type Env
 } from "../services/offer";
+import { getUserPenalties } from "../services/penalty";
 import { json, error } from "../utils/response";
 
 export async function handleOfferRoutes(
@@ -21,14 +23,13 @@ export async function handleOfferRoutes(
 
   const { userId } = auth;
 
-  // GET /api/pool  → استخر درخواست‌ها (با فیلترهای کامل)
+  // GET /api/pool
   if (path === "/api/pool" && request.method === "GET") {
     const url = new URL(request.url);
     const limit = Math.min(Number(url.searchParams.get("limit") || 20), 50);
     const offset = Number(url.searchParams.get("offset") || 0);
     const onlyMySupply = url.searchParams.get("only_my_supply") === "1";
 
-    // فیلترهای جدید
     const cityParam = url.searchParams.get("city") || "all";
     const cityFilter = cityParam === "my" ? "my" : "all";
 
@@ -84,6 +85,29 @@ export async function handleOfferRoutes(
       message: "پیشنهاد شما با موفقیت ثبت شد",
       offer_id: result.offerId
     }, 201);
+  }
+
+  // POST /api/offers/:id/cancel  → لغو پیشنهاد + پنالتی
+  const cancelMatch = path.match(/^\/api\/offers\/(\d+)\/cancel$/);
+  if (cancelMatch && request.method === "POST") {
+    const offerId = Number(cancelMatch[1]);
+    const result = await cancelOfferWithPenalty(env, userId, offerId);
+
+    if (!result.ok) return error(result.error);
+
+    return json({
+      success: true,
+      message: result.message
+    });
+  }
+
+  // GET /api/penalties/my  → لیست پنالتی‌های من
+  if (path === "/api/penalties/my" && request.method === "GET") {
+    const list = await getUserPenalties(env, userId);
+    return json({
+      success: true,
+      data: list
+    });
   }
 
   // GET /api/requests/:id/offers
