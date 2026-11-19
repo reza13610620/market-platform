@@ -13,7 +13,9 @@ import {
   Menu,
   X,
   ShieldCheck,
-  MessageSquare
+  MessageSquare,
+  Bell,
+  Sparkles
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -24,12 +26,13 @@ const navItems = [
   { to: '/requests', label: 'درخواست‌های من', icon: List },
   { to: '/pool', label: 'استخر پیشنهادها', icon: Layers },
   { to: '/supply', label: 'لیست تأمین', icon: Package },
+  { to: '/notifications', label: 'اعلان‌ها', icon: Bell },
   { to: '/tickets', label: 'پشتیبانی', icon: MessageSquare },
+  { to: '/plans', label: 'پلن‌ها', icon: Sparkles },
   { to: '/wallet', label: 'کیف پول', icon: Wallet },
   { to: '/profile', label: 'پروفایل', icon: User },
 ]
 
-// لینک موقت ادمین (بعداً فقط برای نقش ادمین نمایش داده می‌شود)
 const adminItems = [
   { to: '/admin/products/review', label: 'صف بررسی کالا', icon: ShieldCheck },
 ]
@@ -61,9 +64,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-calm-50 via-white to-calm-50 flex">
-      {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex lg:flex-col w-[260px] bg-white/80 backdrop-blur-xl border-l border-calm-100/60 sticky top-0 h-screen">
-        {/* Brand */}
         <div className="px-6 py-7 border-b border-calm-100/60">
           <h1 className="text-xl font-bold text-calm-800 tracking-tight">مارکت پلتفرم</h1>
           <p className="text-sm text-calm-400 mt-1 truncate">
@@ -71,7 +72,6 @@ export default function DashboardLayout() {
           </p>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
@@ -93,7 +93,6 @@ export default function DashboardLayout() {
             </NavLink>
           ))}
 
-          {/* Admin section (temporary) */}
           <div className="pt-4 mt-2 border-t border-calm-100/60">
             <p className="px-4 text-xs text-calm-400 mb-2">مدیریت (موقت)</p>
             {adminItems.map((item) => (
@@ -117,7 +116,6 @@ export default function DashboardLayout() {
           </div>
         </nav>
 
-        {/* Logout */}
         <div className="p-4 border-t border-calm-100/60">
           <button
             onClick={handleLogout}
@@ -130,9 +128,7 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
         <header className="lg:hidden bg-white/80 backdrop-blur-xl border-b border-calm-100/60 px-4 py-3.5
                            flex items-center justify-between sticky top-0 z-30">
           <h1 className="text-lg font-bold text-calm-800">مارکت پلتفرم</h1>
@@ -144,11 +140,10 @@ export default function DashboardLayout() {
           </button>
         </header>
 
-        {/* Mobile Menu */}
         <div
           className={clsx(
             'lg:hidden bg-white border-b border-calm-100 overflow-hidden transition-all duration-300 ease-out',
-            mobileOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+            mobileOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
           <div className="p-3 space-y-1">
@@ -161,9 +156,7 @@ export default function DashboardLayout() {
                 className={({ isActive }) =>
                   clsx(
                     'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? activeBgMobile
-                      : 'text-calm-500 hover:bg-calm-50'
+                    isActive ? activeBgMobile : 'text-calm-500 hover:bg-calm-50'
                   )
                 }
               >
@@ -181,9 +174,7 @@ export default function DashboardLayout() {
                   className={({ isActive }) =>
                     clsx(
                       'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? activeBgMobile
-                        : 'text-calm-500 hover:bg-calm-50'
+                      isActive ? activeBgMobile : 'text-calm-500 hover:bg-calm-50'
                     )
                   }
                 >
@@ -202,7 +193,6 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        {/* Page Content */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
           <div className="page-enter">
             <Outlet />
