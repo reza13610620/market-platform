@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Package, Send, Filter, Sparkles } from 'lucide-react'
+import { Package, Send, Filter, Sparkles, XCircle } from 'lucide-react'
 
 export default function PoolPage() {
   const { token } = useAuth()
@@ -11,6 +11,7 @@ export default function PoolPage() {
   const [onlyMySupply, setOnlyMySupply] = useState(false)
   const [offerPrice, setOfferPrice] = useState<{ [key: number]: string }>({})
   const [submitting, setSubmitting] = useState<number | null>(null)
+  const [cancelling, setCancelling] = useState<number | null>(null)
 
   const primaryClass =
     theme === 'female'
@@ -78,6 +79,33 @@ export default function PoolPage() {
     }
   }
 
+  const cancelOffer = async (offerId: number) => {
+    const confirmed = confirm(
+      'آیا مطمئن هستید؟\n\nبا لغو این پیشنهاد:\n• به مدت ۲۴ ساعت نمی‌توانید پیشنهاد جدید ثبت کنید\n• امتیاز اعتبار شما کاهش می‌یابد\n\nاین عمل قابل برگشت نیست.'
+    )
+    if (!confirmed) return
+
+    setCancelling(offerId)
+    try {
+      const res = await fetch(`/api/offers/${offerId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        alert(data.message || 'پیشنهاد لغو شد')
+        await fetchPool()
+      } else {
+        alert(data.error || 'خطا در لغو پیشنهاد')
+      }
+    } catch {
+      alert('ارتباط با سرور برقرار نشد')
+    } finally {
+      setCancelling(null)
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -88,7 +116,6 @@ export default function PoolPage() {
           </p>
         </div>
 
-        {/* Filter Toggle */}
         <button
           onClick={() => setOnlyMySupply(!onlyMySupply)}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium border transition-all ${
@@ -124,7 +151,6 @@ export default function PoolPage() {
         <div className="space-y-3">
           {pool.map((req) => (
             <div key={req.id} className="card p-5">
-              {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-3">
                 {req.matches_my_supply && (
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${softClass}`}>
@@ -139,7 +165,6 @@ export default function PoolPage() {
                 )}
               </div>
 
-              {/* Items */}
               <div className="flex flex-wrap gap-2 mb-3">
                 {req.items?.map((item: any) => (
                   <span
@@ -161,8 +186,21 @@ export default function PoolPage() {
               </div>
 
               {req.my_offer ? (
-                <div className="p-3.5 rounded-2xl bg-green-50 text-green-700 text-sm font-medium">
-                  پیشنهاد شما ثبت شده: {Number(req.my_offer.price).toLocaleString('fa-IR')} تومان
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-2xl bg-green-50 text-green-700 text-sm font-medium">
+                    پیشنهاد شما ثبت شده: {Number(req.my_offer.price).toLocaleString('fa-IR')} تومان
+                  </div>
+                  <button
+                    onClick={() => cancelOffer(req.my_offer.id)}
+                    disabled={cancelling === req.my_offer.id}
+                    className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1.5"
+                  >
+                    <XCircle size={15} />
+                    {cancelling === req.my_offer.id ? 'در حال لغو...' : 'لغو پیشنهاد'}
+                  </button>
+                  <p className="text-xs text-calm-400 leading-relaxed">
+                    با لغو پیشنهاد، به مدت ۲۴ ساعت نمی‌توانید پیشنهاد جدید ثبت کنید و امتیاز اعتبار شما کاهش می‌یابد.
+                  </p>
                 </div>
               ) : (
                 <div className="flex gap-3">
