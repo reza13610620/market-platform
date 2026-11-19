@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  MessageSquare
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -23,6 +24,7 @@ const navItems = [
   { to: '/requests', label: 'درخواست‌های من', icon: List },
   { to: '/pool', label: 'استخر پیشنهادها', icon: Layers },
   { to: '/supply', label: 'لیست تأمین', icon: Package },
+  { to: '/tickets', label: 'پشتیبانی', icon: MessageSquare },
   { to: '/wallet', label: 'کیف پول', icon: Wallet },
   { to: '/profile', label: 'پروفایل', icon: User },
 ]
