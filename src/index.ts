@@ -14,6 +14,7 @@ import { handleTicketRoutes } from "./routes/ticket";
 import { handleNotificationRoutes } from "./routes/notification";
 import { handleSubscriptionRoutes } from "./routes/subscription";
 import { handleReviewRoutes } from "./routes/review";
+import { handleSmartRoutes } from "./routes/smart";
 import { json, error } from "./utils/response";
 import { securityHeaders, getClientIp, checkRateLimit } from "./utils/security";
 
@@ -63,7 +64,7 @@ export default {
       return withSecurityHeaders(json({
         status: "ok",
         service: "market-platform",
-        version: "0.4.0",
+        version: "0.5.0",
         timestamp: new Date().toISOString()
       }));
     }
@@ -84,7 +85,6 @@ export default {
       if (res) return withSecurityHeaders(res);
     }
 
-    // Review & Orders (باید قبل از /api/me چک شود تا /api/me/reviews و /api/me/orders کار کنند)
     if (
       path === "/api/me/reviews" ||
       path === "/api/me/orders" ||
@@ -93,6 +93,11 @@ export default {
       path.match(/^\/api\/orders\/\d+\/complete$/)
     ) {
       const res = await handleReviewRoutes(request, env, path);
+      if (res) return withSecurityHeaders(res);
+    }
+
+    if (path.startsWith("/api/smart")) {
+      const res = await handleSmartRoutes(request, env, path);
       if (res) return withSecurityHeaders(res);
     }
 

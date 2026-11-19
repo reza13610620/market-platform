@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   MessageSquare,
   Bell,
-  Sparkles
+  Sparkles,
+  Handshake,
+  Brain,
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -26,6 +28,8 @@ const navItems = [
   { to: '/requests', label: 'درخواست‌های من', icon: List },
   { to: '/pool', label: 'استخر پیشنهادها', icon: Layers },
   { to: '/supply', label: 'لیست تأمین', icon: Package },
+  { to: '/orders', label: 'معاملات من', icon: Handshake },
+  { to: '/smart', label: 'دستیار هوشمند', icon: Brain },
   { to: '/notifications', label: 'اعلان‌ها', icon: Bell },
   { to: '/tickets', label: 'پشتیبانی', icon: MessageSquare },
   { to: '/plans', label: 'پلن‌ها', icon: Sparkles },
@@ -143,7 +147,7 @@ export default function DashboardLayout() {
         <div
           className={clsx(
             'lg:hidden bg-white border-b border-calm-100 overflow-hidden transition-all duration-300 ease-out',
-            mobileOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'
+            mobileOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
           <div className="p-3 space-y-1">

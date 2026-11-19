@@ -1,8 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { ArrowRight, Star, Clock, Eye, Phone, MapPin, Shield, AlertCircle, Zap } from 'lucide-react'
+import {
+  ArrowRight,
+  Star,
+  Clock,
+  Eye,
+  Phone,
+  MapPin,
+  Shield,
+  AlertCircle,
+  Zap,
+  TrendingDown,
+} from 'lucide-react'
 
 interface Offer {
   id: number
@@ -81,22 +92,27 @@ export default function RequestOffersPage() {
     if (data.success) setQuota(data.data.remaining_quota)
   }
 
+  // مقایسه قیمت
+  const priceStats = useMemo(() => {
+    if (offers.length === 0) return null
+    const prices = offers.map((o) => o.price)
+    const min = Math.min(...prices)
+    const max = Math.max(...prices)
+    const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
+    const diffPct = max > 0 ? Math.round(((max - min) / max) * 100) : 0
+    return { min, max, avg, diffPct, count: offers.length }
+  }, [offers])
+
   const handleRevealClick = (offerId: number) => {
     setError('')
-
-    // If quota is 0, show upgrade message instead of calling API
     if (quota === 0) {
       setError('سهمیه مشاهده اطلاعات تماس شما تمام شده است. برای ادامه، پلن خود را ارتقا دهید.')
       return
     }
-
-    // Show confirmation if quota is low (1 or 2 remaining)
     if (quota !== null && quota <= 2) {
       setConfirmOfferId(offerId)
       return
     }
-
-    // Normal case → reveal directly
     doReveal(offerId)
   }
 
@@ -147,7 +163,6 @@ export default function RequestOffersPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate('/requests')}
@@ -182,7 +197,7 @@ export default function RequestOffersPage() {
         </div>
         {quota !== null && quota <= 3 && (
           <button
-            onClick={() => navigate('/wallet')}
+            onClick={() => navigate('/plans')}
             className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white transition-colors"
           >
             ارتقای پلن
@@ -190,7 +205,43 @@ export default function RequestOffersPage() {
         )}
       </div>
 
-      {/* Error */}
+      {/* Price Comparison Card */}
+      {priceStats && priceStats.count >= 2 && (
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-calm-800">
+            <TrendingDown size={18} className="text-teal-500" />
+            مقایسه قیمت‌ها
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-xl bg-green-50 p-3">
+              <div className="text-xs text-green-600 mb-1">کمترین</div>
+              <div className="font-bold text-green-700">
+                {priceStats.min.toLocaleString('fa-IR')}
+              </div>
+            </div>
+            <div className="rounded-xl bg-calm-50 p-3">
+              <div className="text-xs text-calm-500 mb-1">میانگین</div>
+              <div className="font-bold text-calm-700">
+                {priceStats.avg.toLocaleString('fa-IR')}
+              </div>
+            </div>
+            <div className="rounded-xl bg-amber-50 p-3">
+              <div className="text-xs text-amber-600 mb-1">بیشترین</div>
+              <div className="font-bold text-amber-700">
+                {priceStats.max.toLocaleString('fa-IR')}
+              </div>
+            </div>
+          </div>
+          {priceStats.diffPct >= 10 && (
+            <p className="text-xs text-calm-500 leading-relaxed">
+              اختلاف بین کمترین و بیشترین قیمت حدود{' '}
+              <strong className="text-calm-700">{priceStats.diffPct}٪</strong> است.
+              پیشنهاد می‌شود ابتدا کمترین قیمت را بررسی کنید.
+            </p>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3">
           <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
@@ -198,7 +249,6 @@ export default function RequestOffersPage() {
         </div>
       )}
 
-      {/* Confirmation Modal (when quota is low) */}
       {confirmOfferId !== null && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-soft-lg space-y-4">
@@ -214,10 +264,7 @@ export default function RequestOffersPage() {
               )}
             </p>
             <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setConfirmOfferId(null)}
-                className="btn-secondary flex-1"
-              >
+              <button onClick={() => setConfirmOfferId(null)} className="btn-secondary flex-1">
                 انصراف
               </button>
               <button
@@ -231,7 +278,6 @@ export default function RequestOffersPage() {
         </div>
       )}
 
-      {/* Offers List */}
       {offers.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="text-calm-400 text-sm">هنوز پیشنهادی برای این درخواست ثبت نشده</div>
@@ -242,10 +288,11 @@ export default function RequestOffersPage() {
           {offers.map((offer, index) => {
             const seller = revealed[offer.id]
             const isRevealed = !!seller
+            const isBest = priceStats && offer.price === priceStats.min
 
             return (
               <div key={offer.id} className="card overflow-hidden">
-                {index === 0 && (
+                {isBest && (
                   <div className={`px-4 py-1.5 text-xs font-medium border-b ${softClass}`}>
                     ★ کمترین قیمت
                   </div>
@@ -258,6 +305,20 @@ export default function RequestOffersPage() {
                         {offer.price.toLocaleString('fa-IR')}
                         <span className="text-sm font-normal text-calm-500 mr-1.5">تومان</span>
                       </div>
+
+                      {priceStats && priceStats.avg > 0 && (
+                        <div className="text-xs text-calm-400 mt-1">
+                          {offer.price < priceStats.avg
+                            ? `${Math.round(
+                                ((priceStats.avg - offer.price) / priceStats.avg) * 100
+                              )}٪ ارزان‌تر از میانگین`
+                            : offer.price > priceStats.avg
+                            ? `${Math.round(
+                                ((offer.price - priceStats.avg) / priceStats.avg) * 100
+                              )}٪ گران‌تر از میانگین`
+                            : 'برابر میانگین'}
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-4 mt-2.5 text-sm text-calm-500">
                         <span className="flex items-center gap-1">
@@ -289,7 +350,6 @@ export default function RequestOffersPage() {
                     )}
                   </div>
 
-                  {/* Revealed Seller Info */}
                   {isRevealed && (
                     <div className="mt-5 p-4 rounded-xl bg-green-50 border border-green-100 space-y-3">
                       <div className="flex items-center gap-2 text-green-800 font-medium text-sm">
@@ -322,6 +382,13 @@ export default function RequestOffersPage() {
                           امتیاز: {seller.reputation_score}
                         </span>
                       </div>
+
+                      <button
+                        onClick={() => navigate('/orders')}
+                        className="text-xs font-medium text-teal-600 hover:text-teal-700"
+                      >
+                        مشاهده در معاملات من ←
+                      </button>
                     </div>
                   )}
                 </div>
