@@ -16,6 +16,8 @@ import MySuggestionsPage from './pages/MySuggestionsPage'
 import AdminProductReviewPage from './pages/AdminProductReviewPage'
 import TicketsPage from './pages/TicketsPage'
 import TicketDetailsPage from './pages/TicketDetailsPage'
+import NotificationsPage from './pages/NotificationsPage'
+import PlansPage from './pages/PlansPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth()
@@ -59,6 +61,8 @@ export default function App() {
         <Route path="admin/products/review" element={<AdminProductReviewPage />} />
         <Route path="tickets" element={<TicketsPage />} />
         <Route path="tickets/:id" element={<TicketDetailsPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="plans" element={<PlansPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
