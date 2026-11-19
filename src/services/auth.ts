@@ -1,13 +1,16 @@
 /**
  * Auth service - Mobile OTP + Session
+ * + همگام‌سازی کاربر با shared-catalog (اگر متصل باشد)
  */
 
 import { generateOtpCode, normalizePhone, otpExpiresAt } from "../utils/otp";
 import { signToken } from "../utils/jwt";
 import { sendOtpSms } from "./sms";
+import { upsertSharedUser } from "./sharedCatalog";
 
 export interface Env {
   DB: D1Database;
+  SHARED_CATALOG?: D1Database;
   SMS_PROVIDER?: string;
   SMS_API_KEY?: string;
   SMS_SENDER?: string;
@@ -45,11 +48,10 @@ export async function requestOtp(env: Env, rawPhone: string): Promise<{ ok: true
     `INSERT INTO otp_codes (phone, code, expires_at) VALUES (?, ?, ?)`
   ).bind(phone, code, expiresAt).run();
 
-  // ارسال پیامک (اگر کلید واقعی نباشد، حالت mock اجرا می‌شود)
   const smsResult = await sendOtpSms(env, phone, code);
 
   if (!smsResult.ok) {
-    console.error('[Auth] SMS failed:', smsResult.error);
+    console.error("[Auth] SMS failed:", smsResult.error);
   }
 
   return { ok: true, message: "کد تأیید ارسال شد" };
@@ -120,7 +122,7 @@ export async function verifyOtp(
 
     await env.DB.batch([
       env.DB.prepare(`INSERT INTO user_profiles (user_id, reputation_score) VALUES (?, 80)`).bind(userId),
-      env.DB.prepare(`INSERT INTO user_wallets (user_id, balance, locked_balance) VALUES (?, 0, 0)`).bind(userId)
+      env.DB.prepare(`INSERT INTO user_wallets (user_id, balance, locked_balance) VALUES (?, 0, 0)`).bind(userId),
     ]);
 
     const freePlan = await env.DB.prepare(
@@ -139,6 +141,17 @@ export async function verifyOtp(
     }
   } else {
     userId = user.id;
+  }
+
+  // همگام‌سازی با دیتابیس مشترک (اگر متصل باشد) — خطا نباید ورود را قطع کند
+  try {
+    await upsertSharedUser(env, {
+      phone,
+      market_user_id: userId,
+      reputation_score: 80,
+    });
+  } catch (e) {
+    console.error("[Auth] shared user sync failed:", e);
   }
 
   const secret = env.JWT_SECRET || "dev-secret-change-me-in-production";

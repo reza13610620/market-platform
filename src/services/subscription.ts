@@ -1,10 +1,13 @@
 /**
  * سرویس پلن و ارتقا – نسخه ساده
- * فعلاً بدون درگاه پرداخت واقعی (شبیه‌سازی ارتقا)
+ * + همگام‌سازی اشتراک با shared-catalog
  */
+
+import { upsertSharedSubscription } from "./sharedCatalog";
 
 export interface Env {
   DB: D1Database;
+  SHARED_CATALOG?: D1Database;
 }
 
 export async function listPlans(env: Env): Promise<any[]> {
@@ -42,7 +45,9 @@ export async function getMySubscription(env: Env, userId: number) {
      JOIN subscription_plans sp ON sp.id = us.plan_id
      WHERE us.user_id = ? AND us.is_active = 1
      ORDER BY us.ends_at DESC LIMIT 1`
-  ).bind(userId).first<any>();
+  )
+    .bind(userId)
+    .first<any>();
 
   if (!row) {
     return {
@@ -79,9 +84,17 @@ export async function upgradePlan(
   }
 
   const plan = await env.DB.prepare(
-    `SELECT id, code, title, price_monthly FROM subscription_plans
+    `SELECT id, code, title, price_monthly, benefits_json FROM subscription_plans
      WHERE code = ? AND is_active = 1`
-  ).bind(planCode).first<{ id: number; code: string; title: string; price_monthly: number }>();
+  )
+    .bind(planCode)
+    .first<{
+      id: number;
+      code: string;
+      title: string;
+      price_monthly: number;
+      benefits_json: string | null;
+    }>();
 
   if (!plan) {
     return { ok: false, error: "پلن یافت نشد" };
@@ -89,18 +102,22 @@ export async function upgradePlan(
 
   await env.DB.prepare(
     `UPDATE user_subscriptions SET is_active = 0 WHERE user_id = ? AND is_active = 1`
-  ).bind(userId).run();
+  )
+    .bind(userId)
+    .run();
 
   const now = new Date();
   const ends = new Date();
   ends.setMonth(ends.getMonth() + 1);
 
-  await env.DB.prepare(
+  const subResult = await env.DB.prepare(
     `INSERT INTO user_subscriptions (user_id, plan_id, starts_at, ends_at, is_active, payment_ref)
      VALUES (?, ?, ?, ?, 1, ?)`
   )
     .bind(userId, plan.id, now.toISOString(), ends.toISOString(), `sim_${Date.now()}`)
     .run();
+
+  const marketSubId = subResult.meta.last_row_id as number;
 
   await env.DB.prepare(
     `INSERT INTO notifications (user_id, channel, title, body, status)
@@ -112,6 +129,28 @@ export async function upgradePlan(
       `پلن «${plan.title}» با موفقیت برای شما فعال شد. از مزایای جدید استفاده کنید.`
     )
     .run();
+
+  // همگام‌سازی با اشتراک مشترک (کلید: شماره موبایل)
+  try {
+    const user = await env.DB.prepare(`SELECT phone FROM users WHERE id = ?`)
+      .bind(userId)
+      .first<{ phone: string }>();
+
+    if (user?.phone) {
+      await upsertSharedSubscription(env, {
+        phone: user.phone,
+        plan_code: plan.code,
+        plan_name: plan.title,
+        source: "market",
+        starts_at: now.toISOString(),
+        expires_at: ends.toISOString(),
+        benefits_json: plan.benefits_json,
+        market_sub_id: marketSubId,
+      });
+    }
+  } catch (e) {
+    console.error("[Subscription] shared sub sync failed:", e);
+  }
 
   return {
     ok: true,
