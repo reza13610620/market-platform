@@ -9,9 +9,13 @@ export default function PoolPage() {
   const [pool, setPool] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [onlyMySupply, setOnlyMySupply] = useState(false)
+  const [cityFilter, setCityFilter] = useState<'all' | 'my'>('all')
+  const [timeFilter, setTimeFilter] = useState<'all' | 'today'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'single' | 'bulk'>('all')
   const [offerPrice, setOfferPrice] = useState<{ [key: number]: string }>({})
   const [submitting, setSubmitting] = useState<number | null>(null)
   const [cancelling, setCancelling] = useState<number | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
 
   const primaryClass =
     theme === 'female'
@@ -29,7 +33,7 @@ export default function PoolPage() {
 
   useEffect(() => {
     fetchPool()
-  }, [onlyMySupply])
+  }, [onlyMySupply, cityFilter, timeFilter, typeFilter])
 
   const fetchPool = async () => {
     setLoading(true)
@@ -37,6 +41,9 @@ export default function PoolPage() {
       const params = new URLSearchParams({
         limit: '30',
         only_my_supply: onlyMySupply ? '1' : '0',
+        city: cityFilter,
+        time: timeFilter,
+        type: typeFilter,
       })
       const res = await fetch(`/api/pool?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -81,7 +88,7 @@ export default function PoolPage() {
 
   const cancelOffer = async (offerId: number) => {
     const confirmed = confirm(
-      'آیا مطمئن هستید؟\n\nبا لغو این پیشنهاد:\n• به مدت ۲۴ ساعت نمی‌توانید پیشنهاد جدید ثبت کنید\n• امتیاز اعتبار شما کاهش می‌یابد\n\nاین عمل قابل برگشت نیست.'
+      'آیا مطمئن هستید؟\n\nبا لغو این پیشنهاد:\n• محدودیت موقت ثبت پیشنهاد جدید\n• کاهش امتیاز اعتبار\n\nاین عمل قابل برگشت نیست.'
     )
     if (!confirmed) return
 
@@ -106,6 +113,11 @@ export default function PoolPage() {
     }
   }
 
+  const chip = (active: boolean) =>
+    active
+      ? softClass + ' border'
+      : 'bg-white text-calm-600 border-calm-200 hover:bg-calm-50'
+
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -116,18 +128,44 @@ export default function PoolPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setOnlyMySupply(!onlyMySupply)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium border transition-all ${
-            onlyMySupply
-              ? softClass + ' border'
-              : 'bg-white text-calm-600 border-calm-200 hover:bg-calm-50'
-          }`}
-        >
-          {onlyMySupply ? <Sparkles size={16} /> : <Filter size={16} />}
-          {onlyMySupply ? 'فقط لیست تأمین من' : 'همه درخواست‌ها'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setOnlyMySupply(!onlyMySupply)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-medium border transition-all ${chip(onlyMySupply)}`}
+          >
+            {onlyMySupply ? <Sparkles size={15} /> : <Filter size={15} />}
+            {onlyMySupply ? 'فقط لیست تأمین' : 'همه'}
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-medium border transition-all ${chip(showFilters)}`}
+          >
+            <Filter size={15} />
+            فیلترها
+          </button>
+        </div>
       </div>
+
+      {showFilters && (
+        <div className="card p-4 space-y-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-calm-400 w-14">شهر:</span>
+            <button onClick={() => setCityFilter('all')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(cityFilter === 'all')}`}>همه</button>
+            <button onClick={() => setCityFilter('my')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(cityFilter === 'my')}`}>شهر من</button>
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-calm-400 w-14">زمان:</span>
+            <button onClick={() => setTimeFilter('all')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(timeFilter === 'all')}`}>همه</button>
+            <button onClick={() => setTimeFilter('today')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(timeFilter === 'today')}`}>امروز</button>
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-calm-400 w-14">نوع:</span>
+            <button onClick={() => setTypeFilter('all')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(typeFilter === 'all')}`}>همه</button>
+            <button onClick={() => setTypeFilter('single')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(typeFilter === 'single')}`}>تکی</button>
+            <button onClick={() => setTypeFilter('bulk')} className={`px-3 py-1.5 rounded-xl text-xs border ${chip(typeFilter === 'bulk')}`}>عمده</button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center text-calm-400 py-16">در حال بارگذاری...</div>
@@ -136,16 +174,8 @@ export default function PoolPage() {
           <div className="text-calm-400 text-sm">
             {onlyMySupply
               ? 'درخواستی مرتبط با لیست تأمین شما پیدا نشد'
-              : 'در حال حاضر درخواست بازی وجود ندارد'}
+              : 'در حال حاضر درخواست بازی با این فیلتر وجود ندارد'}
           </div>
-          {onlyMySupply && (
-            <button
-              onClick={() => setOnlyMySupply(false)}
-              className="btn-secondary mt-4 text-sm"
-            >
-              نمایش همه درخواست‌ها
-            </button>
-          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -160,7 +190,7 @@ export default function PoolPage() {
                 )}
                 {req.is_bulk && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700">
-                    درخواست چندکالایی
+                    عمده
                   </span>
                 )}
               </div>
@@ -188,7 +218,7 @@ export default function PoolPage() {
               {req.my_offer ? (
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-2xl bg-green-50 text-green-700 text-sm font-medium">
-                    پیشنهاد شما ثبت شده: {Number(req.my_offer.price).toLocaleString('fa-IR')} تومان
+                    پیشنهاد شما: {Number(req.my_offer.price).toLocaleString('fa-IR')} تومان
                   </div>
                   <button
                     onClick={() => cancelOffer(req.my_offer.id)}
@@ -196,11 +226,8 @@ export default function PoolPage() {
                     className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1.5"
                   >
                     <XCircle size={15} />
-                    {cancelling === req.my_offer.id ? 'در حال لغو...' : 'لغو پیشنهاد'}
+                    {cancelling === req.my_offer.id ? '...' : 'لغو پیشنهاد'}
                   </button>
-                  <p className="text-xs text-calm-400 leading-relaxed">
-                    با لغو پیشنهاد، به مدت ۲۴ ساعت نمی‌توانید پیشنهاد جدید ثبت کنید و امتیاز اعتبار شما کاهش می‌یابد.
-                  </p>
                 </div>
               ) : (
                 <div className="flex gap-3">

@@ -1,7 +1,7 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Link } from 'react-router-dom'
-import { FilePlus, Layers, Wallet, Package } from 'lucide-react'
+import { FilePlus, Layers, Wallet, Package, Handshake, Brain } from 'lucide-react'
 
 export default function HomePage() {
   const { user } = useAuth()
@@ -35,6 +35,18 @@ export default function HomePage() {
       desc: 'درخواست‌های باز را ببینید و قیمت بدهید',
     },
     {
+      to: '/orders',
+      icon: Handshake,
+      title: 'معاملات من',
+      desc: 'تکمیل معامله و ثبت امتیاز',
+    },
+    {
+      to: '/smart',
+      icon: Brain,
+      title: 'دستیار هوشمند',
+      desc: 'پیشنهادهای هوشمند خرید و فروش (VIP)',
+    },
+    {
       to: '/supply',
       icon: Package,
       title: 'لیست تأمین',
@@ -50,26 +62,20 @@ export default function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      {/* Welcome Card */}
       <div className={`relative overflow-hidden rounded-3xl border bg-gradient-to-l ${softBg} p-6 md:p-8`}>
         <div className="relative z-10">
           <h1 className="text-2xl md:text-3xl font-bold text-calm-800 tracking-tight">
             سلام{user?.first_name ? ` ${user.first_name}` : ''} 👋
           </h1>
           <p className="text-calm-500 mt-2 max-w-lg leading-relaxed">
-            به مارکت پلتفرم خوش آمدید. از اینجا می‌توانید درخواست ثبت کنید یا پیشنهاد بدهید.
+            به مارکت پلتفرم خوش آمدید. درخواست ثبت کنید یا پیشنهاد قیمت بدهید — نقش شما از روی اقدامتان مشخص می‌شود.
           </p>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {actions.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className="card-hover p-6 group"
-          >
+          <Link key={item.to} to={item.to} className="card-hover p-6 group">
             <div
               className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white mb-4
                           transition-transform duration-300 group-hover:scale-110 ${primaryClass}`}
@@ -84,7 +90,6 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Tips */}
       <div className="card p-6 md:p-7">
         <h2 className="font-semibold text-calm-800 mb-4">نکات مهم</h2>
         <ul className="space-y-3 text-sm text-calm-500">
@@ -98,7 +103,7 @@ export default function HomePage() {
           </li>
           <li className="flex gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-2 shrink-0" />
-            <span>لیست تأمین خود را کامل کنید تا درخواست‌های مرتبط به شما نمایش داده شود.</span>
+            <span>نیازی به فعال‌سازی نقش فروشنده نیست؛ با ثبت پیشنهاد به‌صورت خودکار فروشنده می‌شوید.</span>
           </li>
         </ul>
       </div>

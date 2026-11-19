@@ -1,6 +1,7 @@
 /**
  * Offer service - seller price offers + buyer view offers + smart pool
  * + penalty check on create + cancel with penalty
+ * + auto set is_seller on first offer
  */
 
 import { checkOfferRestriction, cancelOfferWithPenalty } from "./penalty";
@@ -26,7 +27,6 @@ export async function createOffer(
     return { ok: false, error: "اطلاعات پیشنهاد ناقص یا نامعتبر است" };
   }
 
-  // بررسی محدودیت پنالتی
   const restriction = await checkOfferRestriction(env, sellerId);
   if (restriction.restricted) {
     const untilFa = restriction.until
@@ -68,6 +68,13 @@ export async function createOffer(
   if (existing) {
     return { ok: false, error: "شما قبلاً روی این درخواست پیشنهاد فعال دارید" };
   }
+
+  // قانون نقش: با ثبت پیشنهاد، کاربر در نقش فروشنده عمل کرده → is_seller را ۱ کن
+  await env.DB.prepare(
+    `UPDATE users SET is_seller = 1, updated_at = datetime('now') WHERE id = ? AND is_seller = 0`
+  )
+    .bind(sellerId)
+    .run();
 
   const validHours = input.valid_hours || 24;
   const validUntil = new Date();
