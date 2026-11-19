@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { User, MapPin, Edit3, Save } from 'lucide-react'
+import { MapPin, Edit3, Save } from 'lucide-react'
+import { getReputationLabel } from '../utils/reputation'
 
 export default function ProfilePage() {
   const { token } = useAuth()
@@ -68,6 +69,9 @@ export default function ProfilePage() {
     return <div className="text-center text-calm-500 py-20">در حال بارگذاری...</div>
   }
 
+  const score = profile?.profile?.reputation_score ?? 80
+  const rep = getReputationLabel(score)
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -97,6 +101,11 @@ export default function ProfilePage() {
                 : 'بدون نام'}
             </div>
             <div className="text-sm text-calm-500" dir="ltr">{profile?.phone}</div>
+            <div className="mt-1.5">
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${rep.color}`}>
+                {score} · {rep.label}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -146,19 +155,10 @@ export default function ProfilePage() {
             {profile?.profile?.bio && (
               <p className="text-calm-600">{profile.profile.bio}</p>
             )}
-            <div className="flex gap-4 pt-2">
-              <div className="text-calm-500">
-                امتیاز اعتبار:{' '}
-                <span className="font-semibold text-calm-800">
-                  {profile?.profile?.reputation_score ?? 80}
-                </span>
-              </div>
-            </div>
           </div>
         )}
       </div>
 
-      {/* Theme Selection */}
       <div className="card p-6">
         <h2 className="font-semibold text-calm-800 mb-4">تم ظاهری</h2>
         <div className="flex flex-wrap gap-3">

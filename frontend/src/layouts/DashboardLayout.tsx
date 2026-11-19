@@ -18,6 +18,8 @@ import {
   Sparkles,
   Handshake,
   Brain,
+  Heart,
+  Headphones,
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -29,6 +31,7 @@ const navItems = [
   { to: '/pool', label: 'استخر پیشنهادها', icon: Layers },
   { to: '/supply', label: 'لیست تأمین', icon: Package },
   { to: '/orders', label: 'معاملات من', icon: Handshake },
+  { to: '/favorites', label: 'علاقه‌مندی‌ها', icon: Heart },
   { to: '/smart', label: 'دستیار هوشمند', icon: Brain },
   { to: '/notifications', label: 'اعلان‌ها', icon: Bell },
   { to: '/tickets', label: 'پشتیبانی', icon: MessageSquare },
@@ -39,6 +42,7 @@ const navItems = [
 
 const adminItems = [
   { to: '/admin/products/review', label: 'صف بررسی کالا', icon: ShieldCheck },
+  { to: '/admin/tickets', label: 'تیکت‌های پشتیبانی', icon: Headphones },
 ]
 
 export default function DashboardLayout() {
@@ -147,7 +151,7 @@ export default function DashboardLayout() {
         <div
           className={clsx(
             'lg:hidden bg-white border-b border-calm-100 overflow-hidden transition-all duration-300 ease-out',
-            mobileOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+            mobileOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
           <div className="p-3 space-y-1">
