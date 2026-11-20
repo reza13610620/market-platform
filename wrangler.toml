@@ -6,13 +6,13 @@ compatibility_date = "2024-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "market-db"
-database_id = "00000000-0000-0000-0000-000000000000"  # بعد از ساخت market-db جایگزین شود
+database_id = "d1c071e4-9d02-475f-be27-263a80e2f6f2"
 
 # ===================== دیتابیس مشترک کاتالوگ/کاربر/پلن =====================
 [[d1_databases]]
 binding = "SHARED_CATALOG"
 database_name = "shared-catalog"
-database_id = "00000000-0000-0000-0000-000000000000"  # Database ID مربوط به shared-catalog
+database_id = "800d4ba6-cfcf-46dd-8408-26cb86cc44ac"
 
 # ===================== Variables (غیر حساس) =====================
 [vars]
