@@ -11,22 +11,24 @@ export interface Env {
   DB: D1Database;
 }
 
-interface RevealResult {
-  ok: true;
-  seller: {
-    phone: string;
-    first_name: string | null;
-    last_name: string | null;
-    city_name: string | null;
-    reputation_score: number;
-  };
-  remaining_quota: number | null;
-  order_id?: number;
-} | {
-  ok: false;
-  error: string;
-  code?: "NO_QUOTA" | "SELLER_RESTRICTED" | "ALREADY_VIEWED" | "NOT_ALLOWED";
-}
+type RevealResult =
+  | {
+      ok: true;
+      seller: {
+        phone: string;
+        first_name: string | null;
+        last_name: string | null;
+        city_name: string | null;
+        reputation_score: number;
+      };
+      remaining_quota: number | null;
+      order_id?: number;
+    }
+  | {
+      ok: false;
+      error: string;
+      code?: "NO_QUOTA" | "SELLER_RESTRICTED" | "ALREADY_VIEWED" | "NOT_ALLOWED";
+    };
 
 export async function revealSellerContact(
   env: Env,
@@ -39,16 +41,18 @@ export async function revealSellerContact(
      FROM request_offers o
      JOIN requests r ON r.id = o.request_id
      WHERE o.id = ?`
-  ).bind(offerId).first<{
-    id: number;
-    request_id: number;
-    seller_id: number;
-    status: string;
-    valid_until: string;
-    price: number;
-    requester_id: number;
-    request_status: string;
-  }>();
+  )
+    .bind(offerId)
+    .first<{
+      id: number;
+      request_id: number;
+      seller_id: number;
+      status: string;
+      valid_until: string;
+      price: number;
+      requester_id: number;
+      request_status: string;
+    }>();
 
   if (!offer) {
     return { ok: false, error: "پیشنهاد یافت نشد", code: "NOT_ALLOWED" };
@@ -69,16 +73,17 @@ export async function revealSellerContact(
   const alreadyViewed = await env.DB.prepare(
     `SELECT id FROM contact_views 
      WHERE viewer_id = ? AND viewed_user_id = ? AND offer_id = ?`
-  ).bind(buyerId, offer.seller_id, offerId).first();
+  )
+    .bind(buyerId, offer.seller_id, offerId)
+    .first();
 
   if (alreadyViewed) {
     const sellerInfo = await getSellerInfo(env, offer.seller_id);
     if (!sellerInfo) return { ok: false, error: "اطلاعات فروشنده یافت نشد" };
     const quota = await getRemainingQuota(env, buyerId);
-    // سفارش موجود را هم برگردان
-    const existingOrder = await env.DB.prepare(
-      `SELECT id FROM orders WHERE offer_id = ?`
-    ).bind(offerId).first<{ id: number }>();
+    const existingOrder = await env.DB.prepare(`SELECT id FROM orders WHERE offer_id = ?`)
+      .bind(offerId)
+      .first<{ id: number }>();
     return {
       ok: true,
       seller: sellerInfo,
@@ -87,9 +92,9 @@ export async function revealSellerContact(
     };
   }
 
-  const sellerUser = await env.DB.prepare(
-    `SELECT id, status FROM users WHERE id = ?`
-  ).bind(offer.seller_id).first<{ id: number; status: string }>();
+  const sellerUser = await env.DB.prepare(`SELECT id, status FROM users WHERE id = ?`)
+    .bind(offer.seller_id)
+    .first<{ id: number; status: string }>();
 
   if (!sellerUser || sellerUser.status === "banned" || sellerUser.status === "suspended") {
     return { ok: false, error: "این فروشنده در حال حاضر قابل نمایش نیست", code: "SELLER_RESTRICTED" };
@@ -108,20 +113,25 @@ export async function revealSellerContact(
   await env.DB.prepare(
     `INSERT INTO contact_views (viewer_id, viewed_user_id, offer_id, request_id)
      VALUES (?, ?, ?, ?)`
-  ).bind(buyerId, offer.seller_id, offerId, offer.request_id).run();
+  )
+    .bind(buyerId, offer.seller_id, offerId, offer.request_id)
+    .run();
 
   if (offer.request_status === "open") {
     await env.DB.prepare(
       `UPDATE requests SET status = 'matched', updated_at = datetime('now') WHERE id = ?`
-    ).bind(offer.request_id).run();
+    )
+      .bind(offer.request_id)
+      .run();
 
     await env.DB.prepare(
       `INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, note)
        VALUES (?, 'open', 'matched', ?, 'مشاهده اطلاعات تماس فروشنده')`
-    ).bind(offer.request_id, buyerId).run();
+    )
+      .bind(offer.request_id, buyerId)
+      .run();
   }
 
-  // ایجاد سفارش سبک برای پشتیبانی بازخورد بعد از معامله (فاز فعلی)
   const orderId = await ensureOrderForOffer(
     env,
     offerId,
@@ -166,13 +176,15 @@ async function getSellerInfo(env: Env, sellerId: number) {
      FROM users u
      LEFT JOIN user_profiles p ON p.user_id = u.id
      WHERE u.id = ?`
-  ).bind(sellerId).first<{
-    phone: string;
-    first_name: string | null;
-    last_name: string | null;
-    city_name: string | null;
-    reputation_score: number | null;
-  }>();
+  )
+    .bind(sellerId)
+    .first<{
+      phone: string;
+      first_name: string | null;
+      last_name: string | null;
+      city_name: string | null;
+      reputation_score: number | null;
+    }>();
 
   if (!row) return null;
 
@@ -192,7 +204,9 @@ async function getRemainingQuota(env: Env, userId: number): Promise<number | nul
      JOIN subscription_plans sp ON sp.id = us.plan_id
      WHERE us.user_id = ? AND us.is_active = 1
      ORDER BY us.ends_at DESC LIMIT 1`
-  ).bind(userId).first<{ benefits_json: string | null }>();
+  )
+    .bind(userId)
+    .first<{ benefits_json: string | null }>();
 
   let quotaMonthly: number | null = 3;
 
@@ -214,7 +228,9 @@ async function getRemainingQuota(env: Env, userId: number): Promise<number | nul
   const used = await env.DB.prepare(
     `SELECT COUNT(*) as count FROM contact_views
      WHERE viewer_id = ? AND created_at >= ?`
-  ).bind(userId, startOfMonth.toISOString()).first<{ count: number }>();
+  )
+    .bind(userId, startOfMonth.toISOString())
+    .first<{ count: number }>();
 
   return Math.max(0, quotaMonthly - (used?.count || 0));
 }
